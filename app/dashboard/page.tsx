@@ -1,15 +1,12 @@
 // app/dashboard/page.tsx
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import DashboardNavbar from "@/components/layout/navbar";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_KEY!
-);
 
 // Mini sparkline path helper
 function sparkPath(vals: number[], w: number, h: number) {
@@ -39,8 +36,22 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const getUser = async () => {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        console.error("Missing Supabase env variables");
+        router.push("/login");
+        return;
+      }
+
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
+      if (!user) { 
+        router.push("/login"); 
+        return; 
+      }
 
       const { data } = await supabase
         .from("profiles")
