@@ -34,35 +34,68 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<any>(null);
   const [chartPeriod, setChartPeriod] = useState<"6m" | "1y">("1y");
 
-  useEffect(() => {
-    const getUser = async () => {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+useEffect(() => {
+  const getUser = async () => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-      if (!supabaseUrl || !supabaseKey) {
-        console.error("Missing Supabase env variables");
-        router.push("/login");
-        return;
-      }
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Missing Supabase env variables");
+      router.push("/login");
+      return;
+    }
 
-      const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { 
-        router.push("/login"); 
-        return; 
-      }
+    // 🔐 Get logged-in user
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-      const { data } = await supabase
-        .from("profiles")
+    if (userError || !user) {
+      router.push("/login");
+      return;
+    }
+
+    // 🔥 STEP 1: CHECK ONBOARDING
+    const { data: onboardingData, error: onboardingError } =
+      await supabase
+        .from("onboarding")
         .select("*")
-        .eq("id", user.id)
+        .eq("user_id", String(user.id))
+        .order("created_at", { ascending: false })
+        .limit(1)
         .single();
 
-      setProfile(data);
-    };
-    getUser();
-  }, [router]);
+      if (onboardingError && onboardingError.message) {
+        console.error("Onboarding fetch error:", onboardingError);
+      }
+
+      console.log("USER ID:", user.id);
+      console.log("ONBOARDING DATA:", onboardingData);
+    // ❌ If onboarding not done → redirect
+    if (!onboardingData) {
+      router.push("/onboarding");
+      return;
+    }
+
+    // ✅ STEP 2: FETCH PROFILE (only if onboarding exists)
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError) {
+      console.error("Profile fetch error:", profileError);
+    }
+
+    setProfile(profileData);
+  };
+
+  getUser();
+}, [router]);
 
   const w = 460, h = 140;
   const path = sparkPath(chartData, w, h);

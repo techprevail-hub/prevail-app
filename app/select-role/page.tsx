@@ -161,7 +161,7 @@ export default function SelectRole() {
       }
       
       localStorage.setItem("userRole", role);
-      setRedirectTo("/dashboard");
+      setRedirectTo("/onboarding");
     } catch (err) {
       console.error("Error selecting role:", err);
       setError(err instanceof Error ? err.message : "An error occurred");
