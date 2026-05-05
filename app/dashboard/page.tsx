@@ -3,9 +3,9 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import DashboardNavbar from "@/components/layout/navbar";
 
 // Mini sparkline path helper
@@ -33,69 +33,145 @@ export default function DashboardPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [chartPeriod, setChartPeriod] = useState<"6m" | "1y">("1y");
+  const [isLoading, setIsLoading] = useState(true);
+  const supabaseRef = useRef<SupabaseClient | null>(null);
+  const redirectAttempted = useRef(false);
+  const checkCount = useRef(0);
 
-useEffect(() => {
-  const getUser = async () => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  useEffect(() => {
+    const initializeAndFetch = async () => {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!supabaseUrl || !supabaseKey) {
-      console.error("Missing Supabase env variables");
-      router.push("/login");
-      return;
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // 🔐 Get logged-in user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      router.push("/login");
-      return;
-    }
-
-    // 🔥 STEP 1: CHECK ONBOARDING
-    const { data: onboardingData, error: onboardingError } =
-      await supabase
-        .from("onboarding")
-        .select("*")
-        .eq("user_id", String(user.id))
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (onboardingError && onboardingError.message) {
-        console.error("Onboarding fetch error:", onboardingError);
+      if (!supabaseUrl || !supabaseKey) {
+        console.error("Missing Supabase env variables");
+        router.push("/login");
+        return;
       }
 
-      console.log("USER ID:", user.id);
-      console.log("ONBOARDING DATA:", onboardingData);
-    // ❌ If onboarding not done → redirect
-    if (!onboardingData) {
-      router.push("/onboarding");
-      return;
-    }
+      // Initialize Supabase client once
+      if (!supabaseRef.current) {
+        supabaseRef.current = createClient(supabaseUrl, supabaseKey);
+      }
+      const supabase = supabaseRef.current;
 
-    // ✅ STEP 2: FETCH PROFILE (only if onboarding exists)
-    const { data: profileData, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+      try {
+        // 🔐 Get logged-in user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (profileError) {
-      console.error("Profile fetch error:", profileError);
-    }
+        if (userError || !user) {
+          console.error("Auth error:", userError);
+          if (!redirectAttempted.current) {
+            redirectAttempted.current = true;
+            router.push("/login");
+          }
+          return;
+        }
 
-    setProfile(profileData);
-  };
+        console.log("User ID:", user.id);
+        console.log("Check attempt:", checkCount.current);
 
-  getUser();
-}, [router]);
+        // 🔥 CHECK ONBOARDING
+        const { data: onboardingData, error: onboardingError } = await supabase
+          .from("onboarding")
+          .select("*")
+          .eq("user_id", String(user.id))
+          .maybeSingle();
+
+        if (onboardingError) {
+          console.error("Onboarding fetch error:", onboardingError);
+        }
+
+        console.log("ONBOARDING DATA:", onboardingData);
+
+        // If no onboarding data and we haven't tried too many times
+        if (!onboardingData && checkCount.current < 3) {
+          console.log(`No onboarding data found, attempt ${checkCount.current + 1} of 3`);
+          checkCount.current++;
+          // Wait and retry
+          setTimeout(() => {
+            initializeAndFetch();
+          }, 1000);
+          return;
+        }
+
+        // If still no onboarding data after retries, redirect
+        if (!onboardingData) {
+          console.log("No onboarding data found after retries, redirecting to onboarding");
+          if (!redirectAttempted.current) {
+            redirectAttempted.current = true;
+            router.push("/onboarding");
+          }
+          return;
+        }
+
+        // ✅ Try to fetch profile, but don't fail if it doesn't exist
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle(); // Changed from .single() to .maybeSingle()
+
+          if (profileError) {
+            // Silently ignore profile errors - it's not critical for dashboard
+            console.log("Profile not found or error, continuing without profile data");
+          }
+
+          setProfile(profileData);
+        } catch (profileErr) {
+          // Catch any profile-related errors without breaking the dashboard
+          console.log("Profile fetch failed but continuing to dashboard");
+          setProfile(null);
+        }
+
+        setIsLoading(false);
+        
+      } catch (error) {
+        console.error("Unexpected error in dashboard:", error);
+        if (!redirectAttempted.current && checkCount.current >= 3) {
+          redirectAttempted.current = true;
+          router.push("/login");
+        } else if (!redirectAttempted.current) {
+          // If we got an error but haven't redirected yet, try again
+          checkCount.current++;
+          setTimeout(() => {
+            initializeAndFetch();
+          }, 1000);
+        }
+      }
+    };
+
+    initializeAndFetch();
+  }, [router]);
+
+  // Show loading spinner while checking authentication and onboarding
+  if (isLoading) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#F0F0FF",
+        fontFamily: "'DM Sans', system-ui, sans-serif"
+      }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{
+            width: "48px",
+            height: "48px",
+            border: "3px solid #E4E4F0",
+            borderTopColor: "#5B5BD6",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+            margin: "0 auto 20px"
+          }} />
+          <p style={{ color: "#4B4B6B" }}>Loading your dashboard...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
 
   const w = 460, h = 140;
   const path = sparkPath(chartData, w, h);

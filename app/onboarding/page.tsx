@@ -20,6 +20,7 @@ export default function Onboarding() {
   const [answers, setAnswers] = useState<any>({});
   const [textValue, setTextValue] = useState("");
   const [animating, setAnimating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const storedRole = localStorage.getItem("userRole");
@@ -29,7 +30,7 @@ export default function Onboarding() {
     }
     setRole(storedRole);
     setQuestions(onboardingConfig[storedRole as keyof typeof onboardingConfig] || []);
-  }, []);
+  }, [router]);
 
   const goToNext = (key: string, value: any) => {
     const newAnswers = { ...answers, [key]: value };
@@ -58,16 +59,70 @@ export default function Onboarding() {
   };
 
   const handleSubmit = async (finalData: any) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("onboarding").upsert(
-    {
-        user_id: user?.id,
-        role,
-        data: finalData,
-    },
-    { onConflict: "user_id" }
-    );
-    router.push("/dashboard");
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        console.error("User not found:", userError);
+        setIsSubmitting(false);
+        router.push("/login");
+        return;
+      }
+
+      // First, try to delete any existing onboarding data for this user
+      const { error: deleteError } = await supabase
+        .from("onboarding")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (deleteError) {
+        console.error("Error deleting existing onboarding:", deleteError);
+        // Continue anyway, maybe there's no existing data
+      }
+
+      // Now insert the new onboarding data
+      const { error: insertError } = await supabase
+        .from("onboarding")
+        .insert([
+          {
+            user_id: user.id,
+            role: role,
+            data: finalData,
+            created_at: new Date().toISOString(),
+          }
+        ]);
+
+      if (insertError) {
+        console.error("Error saving onboarding:", insertError);
+        setIsSubmitting(false);
+        
+        // Show specific error message based on error type
+        if (insertError.code === "23505") {
+          alert("Your information was already saved. Redirecting to dashboard...");
+          window.location.href = "/dashboard";
+        } else {
+          alert("There was an error saving your information. Please try again.");
+        }
+        return;
+      }
+
+      console.log("Onboarding data saved successfully");
+      
+      // Add a delay to ensure the database write is complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Use window.location for a hard redirect to ensure clean state
+      window.location.href = "/dashboard";
+      
+    } catch (error) {
+      console.error("Unexpected error during onboarding submission:", error);
+      setIsSubmitting(false);
+      alert("An unexpected error occurred. Please try again.");
+    }
   };
 
   const handleBack = () => {
@@ -225,13 +280,13 @@ export default function Onboarding() {
           transition: all 0.2s ease;
           letter-spacing: .01em;
         }
-        .ob-btn-primary:hover {
+        .ob-btn-primary:hover:not(:disabled) {
           background: #4A4AC5;
           transform: translateY(-1px);
           box-shadow: 0 6px 24px rgba(91,91,214,.3);
         }
         .ob-btn-primary:disabled {
-          opacity: 0.4;
+          opacity: 0.6;
           cursor: not-allowed;
           transform: none;
           box-shadow: none;
@@ -260,11 +315,15 @@ export default function Onboarding() {
           transition: all 0.18s ease;
           text-align: left;
         }
-        .ob-option:hover {
+        .ob-option:hover:not(:disabled) {
           border-color: #5B5BD6;
           background: #F5F5FF;
           color: #5B5BD6;
           transform: translateX(3px);
+        }
+        .ob-option:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
         .ob-option .ob-option-arrow {
           opacity: 0;
@@ -272,7 +331,7 @@ export default function Onboarding() {
           color: #5B5BD6;
           font-size: 18px;
         }
-        .ob-option:hover .ob-option-arrow {
+        .ob-option:hover:not(:disabled) .ob-option-arrow {
           opacity: 1;
           transform: translateX(3px);
         }
@@ -299,11 +358,15 @@ export default function Onboarding() {
           gap: 8px;
           transition: all 0.18s ease;
         }
-        .ob-bool-btn:hover {
+        .ob-bool-btn:hover:not(:disabled) {
           border-color: #5B5BD6;
           background: #F5F5FF;
           transform: translateY(-2px);
           box-shadow: 0 6px 20px rgba(91,91,214,.12);
+        }
+        .ob-bool-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
         .ob-bool-btn .ob-bool-icon {
           font-size: 28px;
@@ -313,7 +376,7 @@ export default function Onboarding() {
           font-weight: 700;
           color: #0F0F2D;
         }
-        .ob-bool-btn:hover .ob-bool-label {
+        .ob-bool-btn:hover:not(:disabled) .ob-bool-label {
           color: #5B5BD6;
         }
 
@@ -338,7 +401,7 @@ export default function Onboarding() {
           padding: 8px 0;
           transition: color 0.18s ease;
         }
-        .ob-back-btn:hover { color: #5B5BD6; }
+        .ob-back-btn:hover:not(:disabled) { color: #5B5BD6; }
         .ob-back-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
         .ob-dots {
@@ -408,11 +471,12 @@ export default function Onboarding() {
                 onChange={(e) => setTextValue(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleTextSubmit()}
                 autoFocus
+                disabled={isSubmitting}
               />
               <button
                 className="ob-btn-primary"
                 onClick={handleTextSubmit}
-                disabled={!textValue.trim()}
+                disabled={!textValue.trim() || isSubmitting}
               >
                 <span>{step === questions.length - 1 ? "Finish" : "Continue"}</span>
                 <span>→</span>
@@ -430,11 +494,12 @@ export default function Onboarding() {
                 onChange={(e) => setTextValue(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleTextSubmit()}
                 autoFocus
+                disabled={isSubmitting}
               />
               <button
                 className="ob-btn-primary"
                 onClick={handleTextSubmit}
-                disabled={!textValue.trim()}
+                disabled={!textValue.trim() || isSubmitting}
               >
                 <span>{step === questions.length - 1 ? "Finish" : "Continue"}</span>
                 <span>→</span>
@@ -444,11 +509,19 @@ export default function Onboarding() {
 
           {current.type === "boolean" && (
             <div className="ob-bool-group">
-              <button className="ob-bool-btn" onClick={() => handleAnswer(true)}>
+              <button 
+                className="ob-bool-btn" 
+                onClick={() => handleAnswer(true)}
+                disabled={isSubmitting}
+              >
                 <span className="ob-bool-icon">✓</span>
                 <span className="ob-bool-label">Yes</span>
               </button>
-              <button className="ob-bool-btn" onClick={() => handleAnswer(false)}>
+              <button 
+                className="ob-bool-btn" 
+                onClick={() => handleAnswer(false)}
+                disabled={isSubmitting}
+              >
                 <span className="ob-bool-icon">✕</span>
                 <span className="ob-bool-label">No</span>
               </button>
@@ -462,6 +535,7 @@ export default function Onboarding() {
                   key={opt}
                   className="ob-option"
                   onClick={() => handleAnswer(opt)}
+                  disabled={isSubmitting}
                 >
                   <span>{opt}</span>
                   <span className="ob-option-arrow">→</span>
@@ -475,7 +549,7 @@ export default function Onboarding() {
             <button
               className="ob-back-btn"
               onClick={handleBack}
-              disabled={step === 0}
+              disabled={step === 0 || isSubmitting}
             >
               ← Back
             </button>
