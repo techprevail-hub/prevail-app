@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import supabase from "@/lib/supabase";
+import { supabase } from "@/lib/supabaseClient";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -60,6 +60,7 @@ export default function DashboardNavbar({ title, subtitle }: DashboardNavbarProp
   const [displayTitle, setDisplayTitle] = useState(title);
   const [displaySubtitle, setDisplaySubtitle] = useState(subtitle || "");
   const [storedRole, setStoredRole] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Safe localStorage access - only on client side
   useEffect(() => {
@@ -189,13 +190,52 @@ export default function DashboardNavbar({ title, subtitle }: DashboardNavbarProp
   }, [title, subtitle, storedRole]);
 
   const handleLogout = async () => {
-    // Clear localStorage on logout (only on client side)
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem("userRole");
-      localStorage.removeItem("userName");
+    if (isLoggingOut) return; // Prevent multiple logout attempts
+    
+    setIsLoggingOut(true);
+    
+    try {
+      // Clear localStorage first
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem("userRole");
+        localStorage.removeItem("userName");
+        localStorage.removeItem("supabase.auth.token");
+        // Clear any other app-specific items
+        sessionStorage.clear();
+      }
+      
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error("Error signing out:", error);
+        // Still try to redirect even if signout fails
+      }
+      
+      // Force a hard navigation to login page
+      // Using window.location.href for a full page refresh to clear all state
+      window.location.href = "/login";
+      
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Fallback navigation
+      window.location.href = "/login";
+    } finally {
+      setIsLoggingOut(false);
     }
-    await supabase.auth.signOut();
-    router.push("/login");
+  };
+
+  // Get profile path based on user role
+  const getProfilePath = () => {
+    const userRole = profile?.role || storedRole;
+    if (userRole === "student" || userRole === "job_seeker") {
+      return "/dashboard/seeker/seekers-profile";
+    } else if (userRole === "coach") {
+      return "/dashboard/coach/profile";
+    } else if (userRole === "institute") {
+      return "/dashboard/institute/profile";
+    }
+    return "/dashboard/settings";
   };
 
   const displayName = profile?.name || profile?.email?.split("@")[0] || "User";
@@ -480,20 +520,15 @@ export default function DashboardNavbar({ title, subtitle }: DashboardNavbarProp
                   <p className="nb-dd-email">{profile?.email || ""}</p>
                 </div>
 
+                {/* My Profile - Redirects to seeker profile page */}
                 <DropdownMenuItem style={{ borderRadius: 8, fontSize: 13, gap: 9, cursor: "pointer" }} asChild>
-                  <Link href="/dashboard/settings">
+                  <Link href={getProfilePath()}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                     My Profile
                   </Link>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem style={{ borderRadius: 8, fontSize: 13, gap: 9, cursor: "pointer" }} asChild>
-                  <Link href="/dashboard/settings">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l-.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-
+                {/* Help Center */}
                 <DropdownMenuItem style={{ borderRadius: 8, fontSize: 13, gap: 9, cursor: "pointer" }} asChild>
                   <Link href="/dashboard/help">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -527,10 +562,18 @@ export default function DashboardNavbar({ title, subtitle }: DashboardNavbarProp
 
                 <DropdownMenuItem
                   onClick={handleLogout}
-                  style={{ borderRadius: 8, fontSize: 13, gap: 9, cursor: "pointer", color: "#c04444" }}
+                  disabled={isLoggingOut}
+                  style={{ 
+                    borderRadius: 8, 
+                    fontSize: 13, 
+                    gap: 9, 
+                    cursor: isLoggingOut ? "not-allowed" : "pointer", 
+                    color: "#c04444",
+                    opacity: isLoggingOut ? 0.6 : 1
+                  }}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                  Sign out
+                  {isLoggingOut ? "Signing out..." : "Sign out"}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

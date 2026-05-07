@@ -1,15 +1,8 @@
-// app/select-role/page.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/lib/supabaseClient";
 
 const roles = [
   {
@@ -63,23 +56,38 @@ export default function SelectRole() {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(true);
-  const [redirectTo, setRedirectTo] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (redirectTo) {
-      router.push(redirectTo);
-    }
-  }, [redirectTo, router]);
+  const [isNewUser, setIsNewUser] = useState(false); // Track if this is a new user
 
   useEffect(() => {
     const getUserId = async () => {
       try {
+        // First check localStorage for userId (set by login/callback)
+        let storedUserId = localStorage.getItem("userId");
+        
+        if (storedUserId) {
+          setUserId(storedUserId);
+          // Check if this is a new user (no role assigned yet)
+          const { data: user, error: userError } = await supabase
+            .from("users")
+            .select("role")
+            .eq("id", storedUserId)
+            .maybeSingle();
+          
+          if (!userError && !user?.role) {
+            setIsNewUser(true); // This is a new user who needs onboarding
+          }
+          
+          setIsChecking(false);
+          return;
+        }
+        
+        // If not in localStorage, get from session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError || !session?.user?.id) {
           console.error("Session error:", sessionError);
           setError("Please sign in to continue");
-          setTimeout(() => setRedirectTo("/login"), 2000);
+          setTimeout(() => router.replace("/login"), 2000);
           setIsChecking(false);
           return;
         }
@@ -88,7 +96,7 @@ export default function SelectRole() {
         setUserId(userId);
         localStorage.setItem("userId", userId);
         
-        // Check if user already has a role from 'users' table
+        // Check if user already has a role
         const { data: user, error: userError } = await supabase
           .from("users")
           .select("role")
@@ -99,21 +107,33 @@ export default function SelectRole() {
           console.error("Error fetching user:", userError);
         }
         
+        // If user already has a role, redirect directly to dashboard
         if (user?.role) {
-          setRedirectTo("/dashboard");
+          // Map role to dashboard
+          if (user.role === "student" || user.role === "job_seeker") {
+            router.replace("/dashboard/seeker");
+          } else if (user.role === "coach") {
+            router.replace("/dashboard/coach");
+          } else if (user.role === "institute") {
+            router.replace("/dashboard/institute");
+          } else {
+            router.replace("/dashboard");
+          }
           return;
+        } else {
+          setIsNewUser(true); // New user needs onboarding
         }
       } catch (error) {
         console.error("Error getting user:", error);
         setError("Authentication error. Please sign in again.");
-        setTimeout(() => setRedirectTo("/login"), 2000);
+        setTimeout(() => router.replace("/login"), 2000);
       } finally {
         setIsChecking(false);
       }
     };
     
     getUserId();
-  }, []);
+  }, [router]);
 
   const selectRole = async (role: string) => {
     setLoading(true);
@@ -146,22 +166,27 @@ export default function SelectRole() {
         throw new Error(`Failed to update role: ${updateError.message}`);
       }
       
-      // Optional: Call backend API
-      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-      if (apiUrl) {
-        try {
-          await fetch(`${apiUrl}/api/user/role`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: id, role }),
-          });
-        } catch (apiError) {
-          console.warn("API error (non-critical):", apiError);
+      // Store role in localStorage
+      localStorage.setItem("userRole", role);
+      
+      // IMPORTANT: For new users, redirect to onboarding page
+      // For existing users who somehow reached here, redirect to dashboard
+      if (isNewUser) {
+        // New user - go to onboarding
+        router.replace("/onboarding");
+      } else {
+        // Existing user - go to dashboard
+        if (role === "student" || role === "job_seeker") {
+          router.replace("/dashboard/seeker");
+        } else if (role === "coach") {
+          router.replace("/dashboard/coach");
+        } else if (role === "institute") {
+          router.replace("/dashboard/institute");
+        } else {
+          router.replace("/dashboard");
         }
       }
       
-      localStorage.setItem("userRole", role);
-      setRedirectTo("/onboarding");
     } catch (err) {
       console.error("Error selecting role:", err);
       setError(err instanceof Error ? err.message : "An error occurred");

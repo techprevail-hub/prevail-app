@@ -4,12 +4,7 @@
 import { useEffect, useState } from "react";
 import { onboardingConfig } from "@/lib/onboardingConfig";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/lib/supabaseClient";
 
 export default function Onboarding() {
   const router = useRouter();
@@ -64,10 +59,10 @@ export default function Onboarding() {
     setIsSubmitting(true);
     
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
-        console.error("User not found:", userError);
+      const userId = localStorage.getItem("userId");
+
+      if (!userId) {
+        console.error("User ID not found");
         setIsSubmitting(false);
         router.push("/login");
         return;
@@ -77,7 +72,7 @@ export default function Onboarding() {
       const { error: deleteError } = await supabase
         .from("onboarding")
         .delete()
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
 
       if (deleteError) {
         console.error("Error deleting existing onboarding:", deleteError);
@@ -89,7 +84,7 @@ export default function Onboarding() {
         .from("onboarding")
         .insert([
           {
-            user_id: user.id,
+            user_id: userId,
             role: role,
             data: finalData,
             created_at: new Date().toISOString(),
@@ -103,7 +98,16 @@ export default function Onboarding() {
         // Show specific error message based on error type
         if (insertError.code === "23505") {
           alert("Your information was already saved. Redirecting to dashboard...");
-          window.location.href = "/dashboard";
+          // UPDATED: Role-based redirect after onboarding complete with correct role condition
+          if (role === "student" || role === "job_seeker") {
+            window.location.href = "/dashboard/seeker";
+          } else if (role === "coach") {
+            window.location.href = "/dashboard/coach";
+          } else if (role === "institute") {
+            window.location.href = "/dashboard/institute";
+          } else {
+            window.location.href = "/dashboard";
+          }
         } else {
           alert("There was an error saving your information. Please try again.");
         }
@@ -112,11 +116,36 @@ export default function Onboarding() {
 
       console.log("Onboarding data saved successfully");
       
+      // ✅ UPDATE USER ROLE IN USERS TABLE
+      const { error: roleUpdateError } = await supabase
+        .from("users")
+        .update({
+          role: role,
+        })
+        .eq("id", userId);
+
+      if (roleUpdateError) {
+        console.error("Role update error:", roleUpdateError);
+        setIsSubmitting(false);
+        alert("There was an error updating your role. Please try again.");
+        return;
+      }
+      
+      console.log("Role updated successfully");
+      
       // Add a delay to ensure the database write is complete
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Use window.location for a hard redirect to ensure clean state
-      window.location.href = "/dashboard";
+      // UPDATED: Role-based redirect after onboarding complete with correct role condition
+      if (role === "student" || role === "job_seeker") {
+        window.location.href = "/dashboard/seeker";
+      } else if (role === "coach") {
+        window.location.href = "/dashboard/coach";
+      } else if (role === "institute") {
+        window.location.href = "/dashboard/institute";
+      } else {
+        window.location.href = "/dashboard";
+      }
       
     } catch (error) {
       console.error("Unexpected error during onboarding submission:", error);

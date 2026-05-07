@@ -1,15 +1,9 @@
-// app/login/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -35,7 +29,6 @@ export default function LoginPage() {
   // Check for auth error in localStorage
   useEffect(() => {
     const err = localStorage.getItem("authError");
-
     if (err) {
       setAuthErrorMsg(err);
       localStorage.removeItem("authError");
@@ -44,12 +37,13 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
-      await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
+      if (error) throw error;
     } catch (error) {
       console.error("Google login error:", error);
       setError("Failed to sign in with Google");
@@ -58,12 +52,13 @@ export default function LoginPage() {
 
   const handleLinkedInLogin = async () => {
     try {
-      await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "linkedin_oidc",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
+      if (error) throw error;
     } catch (error) {
       console.error("LinkedIn login error:", error);
       setError("Failed to sign in with LinkedIn");
@@ -104,12 +99,11 @@ export default function LoginPage() {
         throw new Error("No account found with this email address. Please sign up first.");
       }
 
-      // According to Supabase docs: signInWithOtp sends the OTP
-      const { data, error } = await supabase.auth.signInWithOtp({
+      // Send OTP
+      const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          // Set this to false to prevent auto-signup (only existing users can login)
-          shouldCreateUser: false,
+          shouldCreateUser: false, // Only existing users can login
         },
       });
 
@@ -138,7 +132,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      // According to Supabase docs: verifyOtp with type 'email' verifies the 6-digit code
+      // Verify OTP
       const { data, error } = await supabase.auth.verifyOtp({
         email,
         token: otp,
@@ -148,7 +142,10 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.user) {
-        // Check if user has a role in users table
+        // Store user ID in localStorage temporarily
+        localStorage.setItem("userId", data.user.id);
+        
+        // Check if user has a role
         const { data: userData, error: userError } = await supabase
           .from("users")
           .select("role")
@@ -159,14 +156,27 @@ export default function LoginPage() {
           console.error("Error fetching user role:", userError);
         }
 
-        if (userData?.role) {
-          router.push("/dashboard");
+        // Role-based redirect logic
+        if (!userData?.role) {
+          // No role assigned - go to select role page
+          router.replace("/select-role");
+          return;
+        }
+
+        // User has role - redirect to appropriate dashboard
+        if (userData.role === "student" || userData.role === "job_seeker") {
+          router.replace("/dashboard/seeker");
+        } else if (userData.role === "coach") {
+          router.replace("/dashboard/coach");
+        } else if (userData.role === "institute") {
+          router.replace("/dashboard/institute");
         } else {
-          router.push("/select-role");
+          router.replace("/select-role");
         }
       }
     } catch (error: any) {
-      setError(error.message || "Invalid OTP");
+      console.error("OTP verification error:", error);
+      setError(error.message || "Invalid OTP. Please try again.");
     } finally {
       setLoading(false);
     }
