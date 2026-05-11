@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User, Mail, Phone, MapPin, FileText, Briefcase,
   Building2, GraduationCap, UserRound, Globe, Star,
@@ -213,31 +213,176 @@ export default function SeekerProfilePage() {
   const [draftSkills, setDraftSkills] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
   const [newSkill, setNewSkill] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch profile data on component mount
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  // Fetch profile from backend
+  async function fetchProfile() {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        console.error("No token found");
+        setIsLoading(false);
+        return;
+      }
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/profile/me`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const result = await res.json();
+
+      if (result.success && result.data) {
+        // Profile exists - populate with data from backend
+        const profileData = {
+          fullName: result.data.full_name || "",
+          email: result.data.email || "",
+          phone: result.data.phone || "",
+          location: result.data.location || "",
+          bio: result.data.bio || "",
+          role: result.data.role || "",
+          industry: result.data.industry || "",
+          experienceLevel: result.data.experience_level || "",
+          skills: Array.isArray(result.data.skills)
+            ? result.data.skills
+            : [],
+          linkedinUrl: result.data.linkedin_url || "",
+          college: result.data.education || "",
+          degree: result.data.degree || "",
+          company: result.data.company || "",
+          position: result.data.position || "",
+        };
+
+        setProfile(profileData);
+        setDraft(profileData);
+        setDraftSkills(profileData.skills);
+      } else {
+        // No profile found - auto-fill from localStorage
+        const userName = localStorage.getItem("userName") || "";
+        const userEmail = localStorage.getItem("userEmail") || "";
+
+        const emptyProfile = {
+          ...EMPTY_PROFILE,
+          fullName: userName,
+          email: userEmail,
+        };
+
+        setProfile(emptyProfile);
+        setDraft(emptyProfile);
+        setDraftSkills(emptyProfile.skills);
+      }
+    } catch (error) {
+      console.error("Profile fetch error:", error);
+      
+      // On error, also try to auto-fill from localStorage
+      const userName = localStorage.getItem("userName") || "";
+      const userEmail = localStorage.getItem("userEmail") || "";
+
+      const emptyProfile = {
+        ...EMPTY_PROFILE,
+        fullName: userName,
+        email: userEmail,
+      };
+
+      setProfile(emptyProfile);
+      setDraft(emptyProfile);
+      setDraftSkills(emptyProfile.skills);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   // Completion % - only count fields that have real values
   const fields: (keyof ProfileData)[] = [
     "fullName","email","phone","location","bio","role",
     "industry","experienceLevel","linkedinUrl","college","degree","company","position",
   ];
-const filled =
+  const filled =
     fields.filter((k) => {
       const value = profile[k];
-
       return (
         typeof value === "string" &&
         value.trim() !== ""
       );
     }).length +
-    (profile.skills.length > 0 ? 1 : 0);  const totalFields = fields.length + 1;
-    const pct = totalFields > 0 ? Math.round((filled / totalFields) * 100) : 0;
+    (profile.skills.length > 0 ? 1 : 0);
+  const totalFields = fields.length + 1;
+  const pct = totalFields > 0 ? Math.round((filled / totalFields) * 100) : 0;
 
   function change(k: keyof ProfileData, v: string) {
     setDraft((d) => ({ ...d, [k]: v }));
   }
 
-  function save() {
-    setProfile({ ...draft, skills: draftSkills });
-    setEditing(false);
+  // Updated save function with API call
+  async function save() {
+    try {
+      setIsSaving(true);
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        console.error("No token found");
+        return;
+      }
+
+      const payload = {
+        user_id: localStorage.getItem("userId"),
+
+        full_name: draft.fullName,
+        email: draft.email,
+        phone: draft.phone,
+        location: draft.location,
+        bio: draft.bio,
+        role: draft.role,
+        industry: draft.industry,
+        experience_level: draft.experienceLevel,
+        skills: draftSkills,
+        linkedin_url: draft.linkedinUrl,
+        education: draft.college,
+        degree: draft.degree,
+        company: draft.company,
+        position: draft.position,
+      };
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/profile/update`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const result = await res.json();
+
+      if (result.success) {
+        setProfile({
+          ...draft,
+          skills: draftSkills,
+        });
+        setEditing(false);
+      } else {
+        console.error("Save failed:", result);
+      }
+    } catch (error) {
+      console.error("Save error:", error);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function cancel() {
@@ -253,7 +398,45 @@ const filled =
   }
 
   const dp = editing ? draft : profile;
-  const skills = editing ? draftSkills : profile.skills;
+  const skills = Array.isArray(
+    editing ? draftSkills : profile.skills
+  )
+    ? (editing ? draftSkills : profile.skills)
+    : [];
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="sp-root">
+        <div className="sp-inner">
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "center", 
+            alignItems: "center", 
+            minHeight: "60vh" 
+          }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{
+                width: "48px",
+                height: "48px",
+                border: "3px solid var(--sp-purple-100)",
+                borderTopColor: "var(--sp-purple)",
+                borderRadius: "50%",
+                animation: "spin 1s linear infinite",
+                margin: "0 auto 20px"
+              }} />
+              <p style={{ color: "var(--sp-txt-m)" }}>Loading your profile...</p>
+              <style>{`
+                @keyframes spin {
+                  to { transform: rotate(360deg); }
+                }
+              `}</style>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -276,11 +459,15 @@ const filled =
             <div className="sp-actions">
               {editing ? (
                 <>
-                  <button className="sp-btn-cancel" onClick={cancel}>
+                  <button className="sp-btn-cancel" onClick={cancel} disabled={isSaving}>
                     <X size={13} /> Cancel
                   </button>
-                  <button className="sp-btn-save" onClick={save}>
-                    <Check size={13} /> Save Changes
+                  <button className="sp-btn-save" onClick={save} disabled={isSaving}>
+                    {isSaving ? (
+                      <>Saving...</>
+                    ) : (
+                      <><Check size={13} /> Save Changes</>
+                    )}
                   </button>
                 </>
               ) : (
@@ -339,7 +526,11 @@ const filled =
               <div className="sp-stats">
                 <div className="sp-stat">
                   <Layers size={14} style={{ color: "var(--sp-purple)" }} />
-                  <span className="sp-stat-val">{profile.skills.length}</span>
+                  <span className="sp-stat-val">
+                    {Array.isArray(profile.skills)
+                      ? profile.skills.length
+                      : 0}
+                  </span>
                   <span className="sp-stat-lbl">Skills</span>
                 </div>
                 <div className="sp-stat">
@@ -472,9 +663,11 @@ const filled =
                     <Check size={13} /> Unsaved changes
                   </p>
                   <div className="sp-actions">
-                    <button className="sp-btn-cancel" onClick={cancel}>Cancel</button>
-                    <button className="sp-btn-save" onClick={save}>
-                      <Check size={13} /> Save Changes
+                    <button className="sp-btn-cancel" onClick={cancel} disabled={isSaving}>
+                      Cancel
+                    </button>
+                    <button className="sp-btn-save" onClick={save} disabled={isSaving}>
+                      {isSaving ? "Saving..." : <><Check size={13} /> Save Changes</>}
                     </button>
                   </div>
                 </div>

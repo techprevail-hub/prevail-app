@@ -142,6 +142,28 @@ export default function LoginPage() {
       if (error) throw error;
 
       if (data.user) {
+        // ✅ ADD TOKEN STORAGE
+        if (data.session?.access_token) {
+          localStorage.setItem(
+            "token",
+            data.session.access_token
+          );
+        }
+
+        // ✅ ADD THESE localStorage SETTINGS
+        localStorage.setItem(
+          "userName",
+          data.user.user_metadata?.name || ""
+        );
+        localStorage.setItem(
+          "userEmail",
+          data.user.email || ""
+        );
+        localStorage.setItem(
+          "userId",
+          data.user.id
+        );
+
         // Store user ID in localStorage temporarily
         localStorage.setItem("userId", data.user.id);
         

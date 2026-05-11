@@ -195,11 +195,13 @@ export default function DashboardNavbar({ title, subtitle }: DashboardNavbarProp
     setIsLoggingOut(true);
     
     try {
-      // Clear localStorage first
+      // Clear localStorage first with updated items
       if (typeof window !== 'undefined') {
-        localStorage.removeItem("userRole");
+        localStorage.removeItem("token");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("userEmail");
         localStorage.removeItem("userName");
-        localStorage.removeItem("supabase.auth.token");
+        localStorage.removeItem("userRole");
         // Clear any other app-specific items
         sessionStorage.clear();
       }

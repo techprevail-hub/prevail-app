@@ -34,6 +34,15 @@ export default function CallbackPage() {
         }
 
         const user = session.user;
+        
+        // ✅ ADD TOKEN STORAGE FOR GOOGLE/LINKEDIN LOGIN
+        if (session?.access_token) {
+          localStorage.setItem(
+            "token",
+            session.access_token
+          );
+        }
+        
         console.log("User authenticated:", user.id);
 
         // Get user name from metadata
@@ -43,6 +52,11 @@ export default function CallbackPage() {
           `${user.user_metadata?.first_name || ""} ${user.user_metadata?.last_name || ""}`.trim() ||
           user.email?.split("@")[0] ||
           "User";
+
+        // ✅ ADD THESE localStorage SETTINGS
+        localStorage.setItem("userName", userName);
+        localStorage.setItem("userEmail", user.email || "");
+        localStorage.setItem("userId", user.id);
 
         // Check if user exists in database
         const { data: existingUser, error: fetchError } = await supabase
