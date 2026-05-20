@@ -7,19 +7,21 @@ import {
   ChevronRight, Star, MapPin, Building2, Zap,
   BookOpen, Award, ArrowUpRight, BarChart3, Eye,
   Send, Bookmark, AlertCircle, Sparkles, GraduationCap,
-  ChevronUp, Activity,
+  ChevronUp, Activity, Calendar, Users, User2, Camera, Mic,
+  MessageSquare, DollarSign
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SkillProgress {
   name: string;
-  level: number; // 0–100
+  level: number;
   category: "technical" | "soft" | "domain";
 }
 
@@ -31,13 +33,6 @@ interface JobApplication {
   status: "applied" | "screening" | "interview" | "offer" | "rejected";
   appliedDate: string;
   logo: string;
-}
-
-interface ResumeSection {
-  label: string;
-  filled: boolean;
-  score: number;
-  tip?: string;
 }
 
 interface Activity {
@@ -75,475 +70,402 @@ const USER = {
 };
 
 const SKILLS: SkillProgress[] = [
-  { name: "React.js",      level: 85, category: "technical" },
-  { name: "Node.js",       level: 72, category: "technical" },
-  { name: "TypeScript",    level: 68, category: "technical" },
-  { name: "PostgreSQL",    level: 60, category: "technical" },
+  { name: "React.js", level: 85, category: "technical" },
+  { name: "Node.js", level: 72, category: "technical" },
+  { name: "TypeScript", level: 68, category: "technical" },
+  { name: "PostgreSQL", level: 60, category: "technical" },
   { name: "Communication", level: 80, category: "soft" },
-  { name: "Leadership",    level: 55, category: "soft" },
-  { name: "Fintech",       level: 45, category: "domain" },
-  { name: "SaaS",          level: 70, category: "domain" },
+  { name: "Leadership", level: 55, category: "soft" },
+  { name: "Fintech", level: 45, category: "domain" },
+  { name: "SaaS", level: 70, category: "domain" },
 ];
 
 const APPLICATIONS: JobApplication[] = [
-  { id: "1", role: "Senior Frontend Developer", company: "Razorpay",     location: "Bengaluru", status: "interview",  appliedDate: "2 days ago",  logo: "R" },
-  { id: "2", role: "Full Stack Engineer",       company: "Zepto",        location: "Mumbai",    status: "screening",  appliedDate: "5 days ago",  logo: "Z" },
-  { id: "3", role: "React Developer",           company: "CRED",         location: "Bengaluru", status: "applied",    appliedDate: "1 week ago",  logo: "C" },
-  { id: "4", role: "Software Engineer II",      company: "Meesho",       location: "Remote",    status: "offer",      appliedDate: "3 weeks ago", logo: "M" },
-  { id: "5", role: "Backend Developer",         company: "PhonePe",      location: "Pune",      status: "rejected",   appliedDate: "1 month ago", logo: "P" },
-];
-
-const RESUME_SECTIONS: ResumeSection[] = [
-  { label: "Contact Info",       filled: true,  score: 10 },
-  { label: "Professional Summary", filled: true,  score: 10, tip: "Add more keywords from your target roles" },
-  { label: "Work Experience",    filled: true,  score: 20 },
-  { label: "Skills",             filled: true,  score: 15 },
-  { label: "Education",          filled: true,  score: 10 },
-  { label: "Projects",           filled: false, score: 0,  tip: "Add 2–3 key projects to boost your score by +15" },
-  { label: "Certifications",     filled: false, score: 0,  tip: "Add relevant certifications to stand out" },
-  { label: "LinkedIn URL",       filled: false, score: 0,  tip: "Link your LinkedIn to increase recruiter trust" },
+  { id: "1", role: "Senior Frontend Developer", company: "Razorpay", location: "Bengaluru", status: "interview", appliedDate: "2 days ago", logo: "R" },
+  { id: "2", role: "Full Stack Engineer", company: "Zepto", location: "Mumbai", status: "screening", appliedDate: "5 days ago", logo: "Z" },
+  { id: "3", role: "React Developer", company: "CRED", location: "Bengaluru", status: "applied", appliedDate: "1 week ago", logo: "C" },
+  { id: "4", role: "Software Engineer II", company: "Meesho", location: "Remote", status: "offer", appliedDate: "3 weeks ago", logo: "M" },
+  { id: "5", role: "Backend Developer", company: "PhonePe", location: "Pune", status: "rejected", appliedDate: "1 month ago", logo: "P" },
 ];
 
 const ACTIVITIES: Activity[] = [
-  { id: "1", type: "view",        message: "Razorpay recruiter viewed your profile",        time: "2h ago" },
-  { id: "2", type: "application", message: "Applied to Senior Frontend Dev at Razorpay",    time: "2d ago" },
-  { id: "3", type: "skill",       message: "Completed TypeScript Advanced course",           time: "4d ago" },
-  { id: "4", type: "profile",     message: "Profile score improved by 8%",                  time: "1w ago" },
-  { id: "5", type: "view",        message: "3 recruiters from Mumbai viewed your profile",  time: "1w ago" },
+  { id: "1", type: "view", message: "Razorpay recruiter viewed your profile", time: "2h ago" },
+  { id: "2", type: "application", message: "Applied to Senior Frontend Dev at Razorpay", time: "2d ago" },
+  { id: "3", type: "skill", message: "Completed TypeScript Advanced course", time: "4d ago" },
+  { id: "4", type: "profile", message: "Profile score improved by 8%", time: "1w ago" },
+  { id: "5", type: "view", message: "3 recruiters from Mumbai viewed your profile", time: "1w ago" },
 ];
 
 const RECOMMENDED: RecommendedJob[] = [
-  { id: "1", role: "React Developer",        company: "Groww",    location: "Bengaluru", type: "Full-time", match: 94, salary: "₹18–28 LPA", posted: "Today" },
-  { id: "2", role: "Full Stack Engineer",    company: "Slice",    location: "Remote",    type: "Full-time", match: 89, salary: "₹15–22 LPA", posted: "2d ago" },
-  { id: "3", role: "Frontend Engineer",      company: "Jupiter",  location: "Bengaluru", type: "Full-time", match: 85, salary: "₹12–20 LPA", posted: "3d ago" },
-];
-
-const NAV_ITEMS = [
-  { icon: LayoutDashboard, label: "Dashboard",    active: true  },
-  { icon: User,            label: "Profile",      active: false },
-  { icon: Briefcase,       label: "Jobs",         active: false },
-  { icon: FileText,        label: "Resume",       active: false },
-  { icon: BookOpen,        label: "Learning",     active: false },
-  { icon: Award,           label: "Certifications", active: false },
+  { id: "1", role: "React Developer", company: "Groww", location: "Bengaluru", type: "Full-time", match: 94, salary: "₹18–28 LPA", posted: "Today" },
+  { id: "2", role: "Full Stack Engineer", company: "Slice", location: "Remote", type: "Full-time", match: 89, salary: "₹15–22 LPA", posted: "2d ago" },
+  { id: "3", role: "Frontend Engineer", company: "Jupiter", location: "Bengaluru", type: "Full-time", match: 85, salary: "₹12–20 LPA", posted: "3d ago" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getStatusConfig(status: JobApplication["status"]) {
-  const map = {
-    applied:   { label: "Applied",   className: "dash-status--applied"   },
-    screening: { label: "Screening", className: "dash-status--screening" },
-    interview: { label: "Interview", className: "dash-status--interview" },
-    offer:     { label: "Offer",     className: "dash-status--offer"     },
-    rejected:  { label: "Rejected",  className: "dash-status--rejected"  },
+function getStatusColor(status: JobApplication["status"]) {
+  const colors = {
+    applied: "bg-blue-100 text-blue-700",
+    screening: "bg-yellow-100 text-yellow-700",
+    interview: "bg-purple-100 text-purple-700",
+    offer: "bg-green-100 text-green-700",
+    rejected: "bg-red-100 text-red-700",
   };
-  return map[status];
+  return colors[status];
 }
 
 function getActivityIcon(type: Activity["type"]) {
-  const map = {
-    view:        { icon: Eye,          className: "dash-act-icon--view"    },
-    application: { icon: Send,         className: "dash-act-icon--apply"   },
-    skill:       { icon: Zap,          className: "dash-act-icon--skill"   },
-    profile:     { icon: TrendingUp,   className: "dash-act-icon--profile" },
+  const icons = {
+    view: Eye,
+    application: Send,
+    skill: Zap,
+    profile: TrendingUp,
   };
-  return map[type];
+  return icons[type];
 }
 
 function getScoreColor(score: number) {
-  if (score >= 80) return "dash-score--high";
-  if (score >= 60) return "dash-score--mid";
-  return "dash-score--low";
+  if (score >= 80) return "text-emerald-600";
+  if (score >= 60) return "text-indigo-600";
+  return "text-amber-600";
 }
-
-function getSkillCategoryClass(cat: SkillProgress["category"]) {
-  return {
-    technical: "dash-skill-bar--technical",
-    soft:      "dash-skill-bar--soft",
-    domain:    "dash-skill-bar--domain",
-  }[cat];
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  delta,
-  iconClass,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string | number;
-  delta?: string;
-  iconClass?: string;
-}) {
-  return (
-    <Card className="dash-stat-card">
-      <CardContent className="dash-stat-body">
-        <div className="dash-stat-top">
-          <span className={`dash-stat-icon-wrap ${iconClass ?? ""}`}>
-            <Icon size={15} />
-          </span>
-          {delta && (
-            <span className="dash-stat-delta">
-              <ChevronUp size={11} />
-              {delta}
-            </span>
-          )}
-        </div>
-        <p className="dash-stat-value">{value}</p>
-        <p className="dash-stat-label">{label}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function CircleScore({
-  score,
-  size = 100,
-  label,
-}: {
-  score: number;
-  size?: number;
-  label: string;
-}) {
-  const r = 36;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (score / 100) * circ;
-
-  return (
-    <div className="dash-circle-wrap">
-      <svg width={size} height={size} viewBox="0 0 88 88">
-        <circle cx="44" cy="44" r={r} className="dash-circle-track" />
-        <circle
-          cx="44" cy="44" r={r}
-          className={`dash-circle-fill ${getScoreColor(score)}`}
-          strokeDasharray={circ}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          transform="rotate(-90 44 44)"
-        />
-      </svg>
-      <div className="dash-circle-center">
-        <span className="dash-circle-pct">{score}</span>
-        <span className="dash-circle-slash">%</span>
-      </div>
-      <p className="dash-circle-label">{label}</p>
-    </div>
-  );
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SeekerDashboardPage() {
-  const [activeNav, setActiveNav] = useState("Dashboard");
   const [skillFilter, setSkillFilter] = useState<"all" | "technical" | "soft" | "domain">("all");
 
   const filteredSkills = skillFilter === "all"
     ? SKILLS
     : SKILLS.filter((s) => s.category === skillFilter);
 
-  const resumeScore = RESUME_SECTIONS.reduce((acc, s) => acc + s.score, 0);
-  const resumeMax   = 100;
-
   return (
-    <div className="dash-root">
+    <div>
+      <div className="p-6 max-w-7xl mx-auto">
+        
 
-      {/* ── Ambient ── */}
-      <div className="dash-blob dash-blob--1" />
-      <div className="dash-blob dash-blob--2" />
-      <div className="dash-blob dash-blob--3" />
-
-      {/* ══════ MAIN ══════ */}
-      <div className="dash-main">
-
-        <div className="dash-body">
-
-          {/* ══ ROW 1 — Stat cards ══ */}
-          <div className="dash-stats-row">
-            <StatCard icon={Eye}       label="Profile Views"   value={USER.profileViews} delta="+12 this week" iconClass="dash-stat-icon--purple" />
-            <StatCard icon={Send}      label="Jobs Applied"    value={USER.appliedJobs}  delta="+3 this week"  iconClass="dash-stat-icon--blue"   />
-            <StatCard icon={Bookmark}  label="Jobs Saved"      value={USER.savedJobs}                          iconClass="dash-stat-icon--amber"  />
-            <StatCard icon={Activity}  label="Interviews"      value={USER.interviews}   delta="+1 this week"  iconClass="dash-stat-icon--green"  />
-          </div>
-
-          {/* ══ ROW 2 — Scores + Progress ══ */}
-          <div className="dash-row-2">
-
-            {/* Score card */}
-            <Card className="dash-score-card">
-              <CardHeader className="dash-card-header">
-                <BarChart3 size={15} className="dash-card-header-icon" />
-                <CardTitle className="dash-card-title">Score Overview</CardTitle>
-              </CardHeader>
-              <CardContent className="dash-score-body">
-                <div className="dash-circles-row">
-                  <CircleScore score={USER.profileScore} label="Profile Score" />
-                  <div className="dash-circles-divider" />
-                  <CircleScore score={USER.resumeScore}  label="Resume Score"  />
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {[
+            { icon: Eye, label: "Profile Views", value: USER.profileViews, delta: "+12%", color: "bg-indigo-100 text-indigo-600" },
+            { icon: Send, label: "Jobs Applied", value: USER.appliedJobs, delta: "+3", color: "bg-blue-100 text-blue-600" },
+            { icon: Bookmark, label: "Jobs Saved", value: USER.savedJobs, delta: null, color: "bg-amber-100 text-amber-600" },
+            { icon: Calendar, label: "Interviews", value: USER.interviews, delta: "+1", color: "bg-green-100 text-green-600" },
+          ].map((stat, idx) => (
+            <Card key={idx} className="hover:shadow-lg transition-all duration-300">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`p-3 rounded-xl ${stat.color}`}>
+                    <stat.icon className="w-5 h-5" />
+                  </div>
+                  {stat.delta && (
+                    <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                      {stat.delta}
+                    </span>
+                  )}
                 </div>
-
-                <Separator className="dash-sep" />
-
-                {/* Score tips */}
-                <div className="dash-score-tips">
-                  <p className="dash-score-tips-title">
-                    <Zap size={12} /> Quick wins
-                  </p>
-                  {RESUME_SECTIONS.filter((s) => !s.filled).slice(0, 3).map((s) => (
-                    <div key={s.label} className="dash-score-tip-row">
-                      <AlertCircle size={12} className="dash-tip-icon" />
-                      <span>{s.tip ?? `Complete ${s.label}`}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <Button className="dash-score-btn">
-                  Improve Score <ArrowUpRight size={13} />
-                </Button>
+                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
               </CardContent>
             </Card>
+          ))}
+        </div>
 
-            {/* Resume breakdown */}
-            <Card className="dash-resume-card">
-              <CardHeader className="dash-card-header">
-                <FileText size={15} className="dash-card-header-icon" />
-                <CardTitle className="dash-card-title">Resume Breakdown</CardTitle>
-                <Badge className="dash-resume-score-badge">{resumeScore}/{resumeMax}</Badge>
-              </CardHeader>
-              <CardContent className="dash-resume-body">
-                {RESUME_SECTIONS.map((section) => (
-                  <div key={section.label} className="dash-resume-row">
-                    <div className="dash-resume-row-left">
-                      {section.filled
-                        ? <CheckCircle2 size={14} className="dash-resume-check--done" />
-                        : <Circle       size={14} className="dash-resume-check--empty" />
-                      }
-                      <span className={`dash-resume-section-label ${!section.filled ? "dash-resume-section-label--empty" : ""}`}>
-                        {section.label}
-                      </span>
-                    </div>
-                    <div className="dash-resume-row-right">
-                      <div className="dash-resume-mini-track">
-                        <div
-                          className={`dash-resume-mini-fill ${section.filled ? "dash-resume-mini-fill--done" : ""}`}
-                          style={{ width: section.filled ? "100%" : "0%" }}
-                        />
-                      </div>
-                      <span className="dash-resume-pts">
-                        {section.filled ? `+${section.score}` : "+0"}
-                      </span>
+        {/* Main Grid - Row 1 */}
+        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+          {/* Score Overview */}
+          <Card className="hover:shadow-lg transition-all duration-300">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-indigo-600" />
+                <CardTitle>Score Overview</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="text-center">
+                  <div className="relative inline-flex items-center justify-center">
+                    <svg className="w-32 h-32">
+                      <circle cx="64" cy="64" r="56" fill="none" stroke="#e2e8f0" strokeWidth="8" />
+                      <circle
+                        cx="64" cy="64" r="56" fill="none"
+                        stroke="url(#profileGradient)"
+                        strokeWidth="8"
+                        strokeDasharray={`${(USER.profileScore / 100) * 352} 352`}
+                        strokeLinecap="round"
+                        transform="rotate(-90 64 64)"
+                      />
+                      <defs>
+                        <linearGradient id="profileGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#6366f1" />
+                          <stop offset="100%" stopColor="#a855f7" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    <div className="absolute">
+                      <span className="text-2xl font-bold text-indigo-600">{USER.profileScore}</span>
+                      <span className="text-sm text-gray-400">%</span>
                     </div>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Activity feed */}
-            <Card className="dash-activity-card">
-              <CardHeader className="dash-card-header">
-                <Clock size={15} className="dash-card-header-icon" />
-                <CardTitle className="dash-card-title">Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent className="dash-activity-body">
-                {ACTIVITIES.map((act, i) => {
-                  const cfg = getActivityIcon(act.type);
-                  const Icon = cfg.icon;
-                  return (
-                    <div key={act.id} className="dash-act-row">
-                      <div className={`dash-act-icon-wrap ${cfg.className}`}>
-                        <Icon size={12} />
-                      </div>
-                      <div className="dash-act-content">
-                        <p className="dash-act-message">{act.message}</p>
-                        <p className="dash-act-time">{act.time}</p>
-                      </div>
-                      {i < ACTIVITIES.length - 1 && <div className="dash-act-line" />}
+                  <p className="text-sm font-medium text-gray-700 mt-2">Profile Score</p>
+                </div>
+                <div className="text-center">
+                  <div className="relative inline-flex items-center justify-center">
+                    <svg className="w-32 h-32">
+                      <circle cx="64" cy="64" r="56" fill="none" stroke="#e2e8f0" strokeWidth="8" />
+                      <circle
+                        cx="64" cy="64" r="56" fill="none"
+                        stroke="url(#resumeGradient)"
+                        strokeWidth="8"
+                        strokeDasharray={`${(USER.resumeScore / 100) * 352} 352`}
+                        strokeLinecap="round"
+                        transform="rotate(-90 64 64)"
+                      />
+                      <defs>
+                        <linearGradient id="resumeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#8b5cf6" />
+                          <stop offset="100%" stopColor="#ec4899" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    <div className="absolute">
+                      <span className="text-2xl font-bold text-purple-600">{USER.resumeScore}</span>
+                      <span className="text-sm text-gray-400">%</span>
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* ══ ROW 3 — Skills ══ */}
-          <Card className="dash-skills-card">
-            <CardHeader className="dash-card-header dash-card-header--between">
-              <div className="dash-card-header-left">
-                <Target size={15} className="dash-card-header-icon" />
-                <CardTitle className="dash-card-title">Skill Progress</CardTitle>
+                  </div>
+                  <p className="text-sm font-medium text-gray-700 mt-2">Resume Score</p>
+                </div>
               </div>
-              <div className="dash-skill-filters">
-                {(["all", "technical", "soft", "domain"] as const).map((f) => (
+              
+              <Separator className="my-6" />
+              
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-amber-500" />
+                  Quick Wins
+                </p>
+                {[
+                  "Add 2-3 key projects to boost resume score",
+                  "Complete your LinkedIn profile",
+                  "Add professional certifications"
+                ].map((tip, idx) => (
+                  <div key={idx} className="flex items-start gap-2 text-sm text-gray-600">
+                    <AlertCircle className="w-4 h-4 text-indigo-500 mt-0.5" />
+                    <span>{tip}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity */}
+          <Card className="hover:shadow-lg transition-all duration-300">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-indigo-600" />
+                <CardTitle>Recent Activity</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {ACTIVITIES.map((activity, idx) => {
+                const Icon = getActivityIcon(activity.type);
+                return (
+                  <div key={activity.id} className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${
+                      activity.type === 'view' ? 'bg-indigo-100' :
+                      activity.type === 'application' ? 'bg-blue-100' :
+                      activity.type === 'skill' ? 'bg-purple-100' : 'bg-green-100'
+                    }`}>
+                      <Icon className={`w-4 h-4 ${
+                        activity.type === 'view' ? 'text-indigo-600' :
+                        activity.type === 'application' ? 'text-blue-600' :
+                        activity.type === 'skill' ? 'text-purple-600' : 'text-green-600'
+                      }`} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-700">{activity.message}</p>
+                      <p className="text-xs text-gray-400 mt-1">{activity.time}</p>
+                    </div>
+                    {idx < ACTIVITIES.length - 1 && <Separator className="absolute left-0 right-0 -bottom-2" />}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Skills Section */}
+        <Card className="mb-8 hover:shadow-lg transition-all duration-300">
+          <CardHeader>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-indigo-600" />
+                <CardTitle>Skill Progress</CardTitle>
+              </div>
+              <div className="flex gap-2">
+                {(["all", "technical", "soft", "domain"] as const).map((filter) => (
                   <button
-                    key={f}
-                    className={`dash-filter-btn ${skillFilter === f ? "dash-filter-btn--active" : ""}`}
-                    onClick={() => setSkillFilter(f)}
+                    key={filter}
+                    onClick={() => setSkillFilter(filter)}
+                    className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
+                      skillFilter === filter
+                        ? "bg-indigo-600 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
                   >
-                    {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
+                    {filter === "all" ? "All" : filter.charAt(0).toUpperCase() + filter.slice(1)}
                   </button>
                 ))}
               </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-6">
+              {filteredSkills.map((skill) => (
+                <div key={skill.name}>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700">{skill.name}</span>
+                    <span className="text-sm text-gray-500">{skill.level}%</span>
+                  </div>
+                  <Progress value={skill.level} className="h-2" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Applications & Recommendations */}
+        <div className="grid lg:grid-cols-2 gap-6 mb-8">
+          {/* Recent Applications */}
+          <Card className="hover:shadow-lg transition-all duration-300">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-indigo-600" />
+                  <CardTitle>Recent Applications</CardTitle>
+                </div>
+                <Button variant="ghost" size="sm" className="text-indigo-600">
+                  View All <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent className="dash-skills-body">
-              <div className="dash-skills-grid">
-                {filteredSkills.map((skill) => (
-                  <div key={skill.name} className="dash-skill-row">
-                    <div className="dash-skill-meta">
-                      <span className="dash-skill-name">{skill.name}</span>
-                      <span className="dash-skill-pct">{skill.level}%</span>
+            <CardContent className="space-y-4">
+              {APPLICATIONS.slice(0, 3).map((app) => (
+                <div key={app.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg flex items-center justify-center font-bold text-indigo-600">
+                      {app.logo}
                     </div>
-                    <div className="dash-skill-track">
-                      <div
-                        className={`dash-skill-bar ${getSkillCategoryClass(skill.category)}`}
-                        style={{ width: `${skill.level}%` }}
-                      />
+                    <div>
+                      <p className="font-semibold text-gray-900">{app.role}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <Building2 className="w-3 h-3" />
+                        <span>{app.company}</span>
+                        <span>•</span>
+                        <MapPin className="w-3 h-3" />
+                        <span>{app.location}</span>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                  <Badge className={getStatusColor(app.status)}>
+                    {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                  </Badge>
+                </div>
+              ))}
             </CardContent>
           </Card>
 
-          {/* ══ ROW 4 — Applications + Recommended ══ */}
-          <div className="dash-row-4">
-
-            {/* Applications */}
-            <Card className="dash-apps-card">
-              <CardHeader className="dash-card-header dash-card-header--between">
-                <div className="dash-card-header-left">
-                  <Briefcase size={15} className="dash-card-header-icon" />
-                  <CardTitle className="dash-card-title">Applications</CardTitle>
+          {/* Recommended Jobs */}
+          <Card className="hover:shadow-lg transition-all duration-300">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-indigo-600" />
+                  <CardTitle>Recommended for You</CardTitle>
                 </div>
-                <Button variant="ghost" size="sm" className="dash-view-all-btn">
-                  View all <ChevronRight size={13} />
+                <Button variant="ghost" size="sm" className="text-indigo-600">
+                  View All <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
-              </CardHeader>
-              <CardContent className="dash-apps-body">
-                {APPLICATIONS.map((app) => {
-                  const status = getStatusConfig(app.status);
-                  return (
-                    <div key={app.id} className="dash-app-row">
-                      <div className="dash-app-logo">{app.logo}</div>
-                      <div className="dash-app-info">
-                        <p className="dash-app-role">{app.role}</p>
-                        <div className="dash-app-meta">
-                          <Building2 size={11} />
-                          <span>{app.company}</span>
-                          <span className="dash-dot">·</span>
-                          <MapPin size={11} />
-                          <span>{app.location}</span>
-                        </div>
-                      </div>
-                      <div className="dash-app-right">
-                        <Badge className={`dash-status-badge ${status.className}`}>
-                          {status.label}
-                        </Badge>
-                        <span className="dash-app-date">{app.appliedDate}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-
-            {/* Recommended jobs */}
-            <Card className="dash-reco-card">
-              <CardHeader className="dash-card-header dash-card-header--between">
-                <div className="dash-card-header-left">
-                  <Sparkles size={15} className="dash-card-header-icon" />
-                  <CardTitle className="dash-card-title">Recommended for you</CardTitle>
-                </div>
-                <Button variant="ghost" size="sm" className="dash-view-all-btn">
-                  View all <ChevronRight size={13} />
-                </Button>
-              </CardHeader>
-              <CardContent className="dash-reco-body">
-                {RECOMMENDED.map((job) => (
-                  <div key={job.id} className="dash-reco-row">
-                    <div className="dash-reco-top">
-                      <div>
-                        <p className="dash-reco-role">{job.role}</p>
-                        <div className="dash-reco-meta">
-                          <Building2 size={11} />
-                          <span>{job.company}</span>
-                          <span className="dash-dot">·</span>
-                          <MapPin size={11} />
-                          <span>{job.location}</span>
-                        </div>
-                      </div>
-                      <span className="dash-match-badge">{job.match}% match</span>
-                    </div>
-                    <div className="dash-reco-bottom">
-                      <div className="dash-reco-tags">
-                        <span className="dash-reco-tag">{job.type}</span>
-                        <span className="dash-reco-tag">{job.salary}</span>
-                        <span className="dash-reco-tag dash-reco-tag--time">{job.posted}</span>
-                      </div>
-                      <Button size="sm" className="dash-apply-btn">
-                        Apply <ArrowUpRight size={12} />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* ══ ROW 5 — Profile strength detail ══ */}
-          <Card className="dash-profile-card">
-            <CardHeader className="dash-card-header dash-card-header--between">
-              <div className="dash-card-header-left">
-                <GraduationCap size={15} className="dash-card-header-icon" />
-                <CardTitle className="dash-card-title">Profile Completion</CardTitle>
               </div>
-              <span className="dash-profile-pct-badge">{USER.profileScore}% complete</span>
             </CardHeader>
-            <CardContent className="dash-profile-body">
+            <CardContent className="space-y-4">
+              {RECOMMENDED.map((job) => (
+                <div key={job.id} className="p-3 border rounded-xl hover:border-indigo-200 transition-all">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="font-semibold text-gray-900">{job.role}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                        <Building2 className="w-3 h-3" />
+                        <span>{job.company}</span>
+                        <span>•</span>
+                        <MapPin className="w-3 h-3" />
+                        <span>{job.location}</span>
+                      </div>
+                    </div>
+                    <Badge className="bg-green-100 text-green-700">
+                      {job.match}% Match
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="flex gap-2">
+                      <span className="text-xs px-2 py-1 bg-gray-100 rounded-full">{job.type}</span>
+                      <span className="text-xs px-2 py-1 bg-gray-100 rounded-full">{job.salary}</span>
+                    </div>
+                    <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+                      Apply Now
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
 
-              {/* Master bar */}
-              <div className="dash-profile-master-track">
-                <div
-                  className="dash-profile-master-fill"
-                  style={{ width: `${USER.profileScore}%` }}
-                />
-                <span className="dash-profile-master-label">{USER.profileScore}%</span>
+        {/* Profile Completion */}
+        <Card className="hover:shadow-lg transition-all duration-300">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GraduationCap className="w-5 h-5 text-indigo-600" />
+                <CardTitle>Profile Completion</CardTitle>
               </div>
-
-              {/* Checklist */}
-              <div className="dash-profile-checklist">
-                {[
-                  { label: "Basic Info (Name, Email, Phone, Location)", done: true,  pts: 10 },
-                  { label: "Professional Bio",                          done: true,  pts: 10 },
-                  { label: "Work Experience",                           done: true,  pts: 20 },
-                  { label: "Education",                                 done: true,  pts: 10 },
-                  { label: "Skills (5+ added)",                         done: true,  pts: 15 },
-                  { label: "LinkedIn URL",                              done: false, pts: 8  },
-                  { label: "Projects (2+ added)",                       done: false, pts: 15 },
-                  { label: "Profile Photo",                             done: false, pts: 7  },
-                  { label: "Certifications",                            done: false, pts: 5  },
-                ].map((item) => (
-                  <div key={item.label} className="dash-checklist-row">
-                    {item.done
-                      ? <CheckCircle2 size={14} className="dash-check--done" />
-                      : <Circle       size={14} className="dash-check--empty" />
-                    }
-                    <span className={`dash-checklist-label ${!item.done ? "dash-checklist-label--pending" : ""}`}>
+              <Badge className="bg-indigo-100 text-indigo-700 text-sm px-3 py-1">
+                {USER.profileScore}% Complete
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Progress value={USER.profileScore} className="h-3 mb-6" />
+            <div className="grid md:grid-cols-2 gap-3">
+              {[
+                { label: "Basic Information", completed: true, points: 10 },
+                { label: "Professional Summary", completed: true, points: 10 },
+                { label: "Work Experience", completed: true, points: 20 },
+                { label: "Education", completed: true, points: 10 },
+                { label: "Skills", completed: true, points: 15 },
+                { label: "Projects", completed: false, points: 15 },
+                { label: "Certifications", completed: false, points: 10 },
+                { label: "LinkedIn Integration", completed: false, points: 10 },
+              ].map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
+                  <div className="flex items-center gap-2">
+                    {item.completed ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-gray-300" />
+                    )}
+                    <span className={`text-sm ${item.completed ? "text-gray-700" : "text-gray-400"}`}>
                       {item.label}
                     </span>
-                    <span className={`dash-checklist-pts ${item.done ? "dash-checklist-pts--done" : "dash-checklist-pts--pending"}`}>
-                      {item.done ? `+${item.pts} pts` : `+${item.pts} pts available`}
-                    </span>
                   </div>
-                ))}
-              </div>
+                  <span className={`text-xs ${item.completed ? "text-green-600" : "text-gray-400"}`}>
+                    +{item.points} pts
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-            </CardContent>
-          </Card>
-
-        </div>
       </div>
     </div>
   );
