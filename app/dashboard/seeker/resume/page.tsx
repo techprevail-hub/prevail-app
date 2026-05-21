@@ -609,11 +609,6 @@ export default function ResumeAnalysisPage() {
                     </CardContent>
                   </Card>
                 )}
-
-                {/* Download Button */}
-                <button className="w-full py-3 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5">
-                  <Download className="w-4 h-4" />Download Full Report
-                </button>
               </div>
 
             ) : loadingHistory ? (
