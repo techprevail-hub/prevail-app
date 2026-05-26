@@ -14,11 +14,14 @@ import {
   ChevronRight,
   Star,
   Clock,
-  User
+  User,
+  ZoomIn,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 interface GeneratedImage {
   image_url: string;
@@ -47,6 +50,8 @@ export default function HeadshotPage() {
   const [dragActive, setDragActive] = useState(false);
   const [history, setHistory] = useState<HeadshotResult[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
+  const [hoveredImage, setHoveredImage] = useState<number | null>(null);
 
   // Available styles
   const STYLES = [
@@ -82,9 +87,13 @@ export default function HeadshotPage() {
       const data = await response.json();
       
       if (data.success && data.data && data.data.length > 0) {
-        setHistory(data.data);
+        // Sort history by created_at descending (newest first)
+        const sortedHistory = [...data.data].sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setHistory(sortedHistory);
         // Show the latest generation
-        setResult(data.data[0]);
+        setResult(sortedHistory[0]);
       }
     } catch (err) {
       console.error("Error fetching headshot history:", err);
@@ -154,7 +163,6 @@ export default function HeadshotPage() {
       formData.append("image", image);
       formData.append("style", style);
 
-      // POST request to the same endpoint
       const response = await fetch(`${API_URL}/api/headshot`, {
         method: "POST",
         headers: {
@@ -167,16 +175,17 @@ export default function HeadshotPage() {
 
       if (data.success) {
         setResult(data.data);
-        // Refresh history after successful generation
+        toast.success("Headshots generated successfully!");
         await fetchHeadshotHistory();
-        // Clear the uploaded image after success
         removeImage();
       } else {
         setError(data.message || "Generation failed. Please try again.");
+        toast.error(data.message || "Generation failed");
       }
     } catch (error) {
       console.error("Headshot generation error:", error);
       setError("Something went wrong. Please try again.");
+      toast.error("Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -184,29 +193,66 @@ export default function HeadshotPage() {
 
   const loadHistoryItem = (item: HeadshotResult) => {
     setResult(item);
+    toast.info(`Loaded ${item.style_used || "headshot"} style`);
   };
 
-  const downloadImage = async (imageUrl: string, index: number) => {
+  const downloadImage = async (imageUrl: string, index: number, styleName: string) => {
     try {
+      setDownloadingIndex(index);
       const response = await fetch(imageUrl);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `headshot_${Date.now()}_${index + 1}.png`;
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+      a.download = `headshot_${styleName.toLowerCase()}_${timestamp}.png`;
       document.body.appendChild(a);
+      a.href = url;
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      toast.success("Image downloaded successfully!");
     } catch (error) {
       console.error("Download error:", error);
+      toast.error("Failed to download image");
+    } finally {
+      setDownloadingIndex(null);
     }
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "Recent";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
   };
 
   // Safe function to get generated images (handles null)
   const getGeneratedImages = (result: HeadshotResult | null) => {
     return result?.generated_images || [];
   };
+
+  // Skeleton loader component
+  const SkeletonLoader = () => (
+    <div className="animate-pulse">
+      <div className="grid grid-cols-2 gap-4">
+        {[1, 2].map((i) => (
+          <div key={i} className="space-y-2">
+            <div className="w-full aspect-square bg-gray-200 rounded-xl"></div>
+            <div className="h-8 bg-gray-200 rounded-lg"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
@@ -241,7 +287,6 @@ export default function HeadshotPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Drop Zone - Only show when no image selected */}
                 {!preview && (
                   <div
                     onDragEnter={handleDrag}
@@ -277,7 +322,6 @@ export default function HeadshotPage() {
                   </div>
                 )}
 
-                {/* Selected Image Preview - Smaller size */}
                 {preview && (
                   <div className="space-y-3">
                     <div className="relative inline-block">
@@ -355,7 +399,7 @@ export default function HeadshotPage() {
             >
               {loading ? (
                 <>
-                  <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   Generating...
                 </>
               ) : (
@@ -370,93 +414,83 @@ export default function HeadshotPage() {
           {/* Right Column - Results & History */}
           <div className="space-y-6">
             {/* Results Section */}
-            {result && (getGeneratedImages(result).length > 0 || preview) && (
+            {result && (getGeneratedImages(result).length > 0) && (
               <Card className="border-gray-100 shadow-lg">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Sparkles className="w-5 h-5 text-indigo-600" />
                     Your Headshot Results
                   </CardTitle>
-                  <CardDescription>
-                    AI-generated professional headshots based on your upload
-                  </CardDescription>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge className="bg-indigo-100 text-indigo-700">
+                      {result.style_used || style}
+                    </Badge>
+                    {result.created_at && (
+                      <span className="text-xs text-gray-500">
+                        {formatDate(result.created_at)}
+                      </span>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   
-                  {/* Original Uploaded Image - Show if available */}
-                  {result?.original_image_url && (
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <User className="w-4 h-4 text-indigo-600" />
-                        Original Upload
-                      </h3>
-                      <div className="relative inline-block">
-                        <img
-                          referrerPolicy="no-referrer"
-                          src={result.original_image_url}
-                          alt="Original"
-                          className="w-40 h-40 rounded-xl object-cover border-2 border-indigo-200 shadow-md"
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Your uploaded photo (for reference)
-                      </p>
-                    </div>
-                  )}
-
                   {/* AI Generated Images */}
                   {getGeneratedImages(result).length > 0 && (
                     <div>
-                      <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-purple-600" />
-                        AI Generated Inspirations
-                      </h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        {getGeneratedImages(result).map((item, index) => (
-                          <div key={index} className="space-y-2">
-                            <div className="relative group">
-                              <img
-                                referrerPolicy="no-referrer"
-                                src={item.image_url}
-                                alt={`AI Headshot ${index + 1}`}
-                                className="w-full aspect-square object-cover rounded-xl border-2 border-gray-200 hover:border-indigo-300 transition-all"
-                              />
-                              <div className="absolute inset-0 bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() => downloadImage(item.image_url, index)}
-                                  className="bg-white text-gray-900 hover:bg-gray-100"
-                                >
-                                  <Download className="w-4 h-4 mr-1" />
-                                  Download
-                                </Button>
+                      {loading ? (
+                        <SkeletonLoader />
+                      ) : (
+                        <div className="flex flex-wrap justify-center gap-4">
+                          {getGeneratedImages(result).map((item, index) => (
+                            <div 
+                              key={index} 
+                              className="space-y-2 group w-[220px]"
+                              onMouseEnter={() => setHoveredImage(index)}
+                              onMouseLeave={() => setHoveredImage(null)}
+                            >
+                              <div className="relative overflow-hidden rounded-xl">
+                                <img
+                                  referrerPolicy="no-referrer"
+                                  src={item.image_url}
+                                  alt={`AI Headshot ${index + 1}`}
+                                  className="w-full h-[260px] object-cover rounded-xl border-2 border-gray-200 group-hover:border-indigo-300 transition-all duration-300 hover:scale-[1.02]"
+                                />
+                                {/* Overlay with actions */}
+                                <div className={`absolute inset-0 bg-black/60 transition-opacity duration-300 flex items-center justify-center gap-2 ${
+                                  hoveredImage === index ? 'opacity-100' : 'opacity-0'
+                                }`}>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => downloadImage(item.image_url, index, item.style || result.style_used || style)}
+                                    disabled={downloadingIndex === index}
+                                    className="bg-white text-gray-900 hover:bg-gray-100"
+                                  >
+                                    {downloadingIndex === index ? (
+                                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                    ) : (
+                                      <Download className="w-4 h-4 mr-1" />
+                                    )}
+                                    Download
+                                  </Button>
+                                </div>
                               </div>
+                              <Badge variant="secondary" className="w-full justify-center">
+                                {item.style || result.style_used || style}
+                              </Badge>
                             </div>
-                            <Badge variant="secondary" className="w-full justify-center">
-                              {item.style || result.style_used || style}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-3 text-center">
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-500 mt-4 text-center">
                         ✨ AI-generated inspiration for professional headshots
                       </p>
-                    </div>
-                  )}
-
-                  {/* Empty state when no images */}
-                  {getGeneratedImages(result).length === 0 && !result?.original_image_url && (
-                    <div className="text-center py-8">
-                      <ImageIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-500">No results to display</p>
-                      <p className="text-sm text-gray-400">Upload a photo and generate headshots</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
             )}
 
-            {/* History Section */}
+            {/* History Section - Improved */}
             <Card className="border-gray-100 shadow-lg">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -483,30 +517,58 @@ export default function HeadshotPage() {
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {history.map((item, idx) => {
                       const generatedImages = getGeneratedImages(item);
+                      const isActive = result?.id === item.id;
                       return (
                         <button
                           key={idx}
                           onClick={() => loadHistoryItem(item)}
-                          className="w-full text-left p-3 border rounded-xl hover:border-indigo-200 hover:bg-indigo-50/50 transition-all"
+                          className={`w-full text-left p-3 border rounded-xl transition-all ${
+                            isActive
+                              ? "border-indigo-400 bg-indigo-50 shadow-md"
+                              : "border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/50"
+                          }`}
                         >
                           <div className="flex items-center gap-3">
                             {generatedImages.length > 0 && generatedImages[0] && (
-                              <img
-                                referrerPolicy="no-referrer"
-                                src={generatedImages[0].image_url}
-                                alt="Thumbnail"
-                                className="w-12 h-12 object-cover rounded-lg"
-                              />
+                              <div className="relative">
+                                <img
+                                  referrerPolicy="no-referrer"
+                                  src={generatedImages[0].image_url}
+                                  alt="Thumbnail"
+                                  className="w-14 h-14 object-cover rounded-lg"
+                                />
+                                {isActive && (
+                                  <div className="absolute -top-1 -right-1">
+                                    <Badge className="bg-indigo-600 text-white text-[10px] px-1">
+                                      Current
+                                    </Badge>
+                                  </div>
+                                )}
+                              </div>
                             )}
                             <div className="flex-1">
-                              <p className="text-sm font-semibold text-gray-900">
-                                {item.style_used || "Headshot"} Style
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {generatedImages.length} variations
-                              </p>
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {item.style_used || "Headshot"} Style
+                                </p>
+                                <span className="text-xs text-gray-500">
+                                  {formatDate(item.created_at)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="secondary" className="text-xs">
+                                  {generatedImages.length} variation{generatedImages.length !== 1 ? 's' : ''}
+                                </Badge>
+                                {item.id === result?.id && (
+                                  <Badge className="bg-green-100 text-green-700 text-xs">
+                                    Loaded
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
-                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                            <ChevronRight className={`w-4 h-4 transition-colors ${
+                              isActive ? "text-indigo-600" : "text-gray-400"
+                            }`} />
                           </div>
                         </button>
                       );
@@ -549,8 +611,7 @@ export default function HeadshotPage() {
                 </ul>
               </CardContent>
             </Card>
-          </div>
-          
+          </div>         
         </div>
       </div>
     </div>
