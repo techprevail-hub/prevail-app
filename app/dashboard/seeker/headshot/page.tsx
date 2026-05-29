@@ -47,11 +47,13 @@ export default function HeadshotPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<HeadshotResult | null>(null);
   const [error, setError] = useState("");
+  const [quotaError, setQuotaError] = useState<{ message: string; resetTime: Date | null } | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [history, setHistory] = useState<HeadshotResult[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
   const [hoveredImage, setHoveredImage] = useState<number | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<string>("");
 
   // Available styles
   const STYLES = [
@@ -67,6 +69,37 @@ export default function HeadshotPage() {
   useEffect(() => {
     fetchHeadshotHistory();
   }, []);
+
+  // Timer for quota reset countdown
+  useEffect(() => {
+    if (quotaError?.resetTime) {
+      const interval = setInterval(() => {
+        const now = new Date();
+        const resetTime = quotaError.resetTime!;
+        
+        if (now >= resetTime) {
+          setQuotaError(null);
+          setTimeRemaining("");
+          clearInterval(interval);
+        } else {
+          const diffMs = resetTime.getTime() - now.getTime();
+          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+          const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+          const diffSeconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+          
+          if (diffHours > 0) {
+            setTimeRemaining(`${diffHours}h ${diffMinutes}m ${diffSeconds}s`);
+          } else if (diffMinutes > 0) {
+            setTimeRemaining(`${diffMinutes}m ${diffSeconds}s`);
+          } else {
+            setTimeRemaining(`${diffSeconds}s`);
+          }
+        }
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [quotaError]);
 
   const fetchHeadshotHistory = async () => {
     try {
@@ -118,6 +151,7 @@ export default function HeadshotPage() {
       setImage(file);
       setPreview(URL.createObjectURL(file));
       setError("");
+      setQuotaError(null);
     } else {
       setError("Please upload a valid image file.");
     }
@@ -131,6 +165,7 @@ export default function HeadshotPage() {
       setImage(file);
       setPreview(URL.createObjectURL(file));
       setError("");
+      setQuotaError(null);
     } else {
       setError("Please upload a valid image file.");
     }
@@ -140,6 +175,7 @@ export default function HeadshotPage() {
     setImage(null);
     setPreview("");
     setError("");
+    setQuotaError(null);
   };
 
   const handleGenerate = async () => {
@@ -150,6 +186,7 @@ export default function HeadshotPage() {
 
     setLoading(true);
     setError("");
+    setQuotaError(null);
 
     try {
       const token = localStorage.getItem("token");
@@ -177,15 +214,44 @@ export default function HeadshotPage() {
         setResult(data.data);
         toast.success("Headshots generated successfully!");
         await fetchHeadshotHistory();
-        removeImage();
+        // Don't remove the image - keep it in the selected image box
+        // removeImage(); // Removed this line
       } else {
-        setError(data.message || "Generation failed. Please try again.");
-        toast.error(data.message || "Generation failed");
+        // Check if it's a quota/rate limit error (429)
+        if (response.status === 429 || data.message?.toLowerCase().includes('quota') || data.message?.toLowerCase().includes('rate limit')) {
+          // Calculate reset time (tomorrow at midnight local time)
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(0, 0, 0, 0);
+          
+          setQuotaError({
+            message: "You have exceeded the free tier limit for today.",
+            resetTime: tomorrow
+          });
+          toast.error("Daily limit exceeded. Please try again tomorrow.");
+        } else {
+          setError(data.message || "Generation failed. Please try again.");
+          toast.error(data.message || "Generation failed");
+        }
       }
     } catch (error) {
       console.error("Headshot generation error:", error);
-      setError("Something went wrong. Please try again.");
-      toast.error("Something went wrong");
+      // Check if error is quota related
+      const errorMessage = error instanceof Error ? error.message : "Something went wrong";
+      if (errorMessage.toLowerCase().includes('quota') || errorMessage.toLowerCase().includes('429')) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        
+        setQuotaError({
+          message: "You have exceeded the free tier limit for today.",
+          resetTime: tomorrow
+        });
+        toast.error("Daily limit exceeded. Please try again tomorrow.");
+      } else {
+        setError("Something went wrong. Please try again.");
+        toast.error("Something went wrong");
+      }
     } finally {
       setLoading(false);
     }
@@ -345,10 +411,36 @@ export default function HeadshotPage() {
                   </div>
                 )}
 
-                {error && (
+                {/* Regular Error Message */}
+                {error && !quotaError && (
                   <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-red-500" />
                     <p className="text-sm text-red-600">{error}</p>
+                  </div>
+                )}
+
+                {/* Quota Error Message - Clean & User Friendly */}
+                {quotaError && (
+                  <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0">
+                        <Clock className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-amber-800 mb-1">
+                          Daily Limit Reached
+                        </p>
+                        <p className="text-sm text-amber-700">
+                          {quotaError.message}
+                        </p>
+                        <p className="text-sm text-amber-700 mt-2 font-medium">
+                          Please try again in: <span className="font-mono bg-amber-100 px-2 py-0.5 rounded">{timeRemaining || "Calculating..."}</span>
+                        </p>
+                        <p className="text-xs text-amber-600 mt-2">
+                          ⏰ Resets at midnight (12:00 AM)
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -394,13 +486,18 @@ export default function HeadshotPage() {
             {/* Generate Button */}
             <Button
               onClick={handleGenerate}
-              disabled={loading || !image}
-              className="w-full py-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold text-lg"
+              disabled={loading || !image || !!quotaError}
+              className="w-full py-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   Generating...
+                </>
+              ) : quotaError ? (
+                <>
+                  <Clock className="w-5 h-5 mr-2" />
+                  Try Again Tomorrow
                 </>
               ) : (
                 <>
