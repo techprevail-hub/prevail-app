@@ -16,6 +16,7 @@ export default function Onboarding() {
   const [textValue, setTextValue] = useState("");
   const [animating, setAnimating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // New loading state
 
   useEffect(() => {
     const storedRole = localStorage.getItem("userRole");
@@ -23,6 +24,7 @@ export default function Onboarding() {
     console.log("Stored Role:", storedRole);
 
     if (!storedRole) {
+      setIsLoading(false);
       router.push("/select-role");
       return;
     }
@@ -32,14 +34,55 @@ export default function Onboarding() {
         storedRole as keyof typeof onboardingConfig
       ];
 
-    console.log(
-      "Questions Found:",
-      roleQuestions
-    );
+    console.log("Questions Found:", roleQuestions);
 
     setRole(storedRole);
     setQuestions(roleQuestions || []);
+
+    setIsLoading(false);
   }, [router]);
+
+  // Check for loading state
+  if (isLoading) {
+    return (
+      <div style={{
+        minHeight: "100vh", display: "flex", alignItems: "center",
+        justifyContent: "center", background: "#F0F0FF",
+        fontFamily: "'DM Sans', system-ui, sans-serif"
+      }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{
+            width: "48px", height: "48px",
+            border: "3px solid #E4E4F0", borderTopColor: "#5B5BD6",
+            borderRadius: "50%", animation: "spin 1s linear infinite",
+            margin: "0 auto 20px"
+          }} />
+          <p style={{ color: "#4B4B6B" }}>Preparing your experience...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if no role found
+  if (!role) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          background: "#F0F0FF",
+          fontFamily: "'DM Sans', system-ui, sans-serif",
+        }}
+      >
+        <div style={{ textAlign: "center", padding: "20px" }}>
+          <p style={{ color: "#4B4B6B", fontSize: "16px" }}>No role found. Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Check if role exists but no questions found
   if (role && questions.length === 0) {
@@ -214,28 +257,14 @@ export default function Onboarding() {
     }, 220);
   };
 
-  if (!role) {
-    return (
-      <div style={{
-        minHeight: "100vh", display: "flex", alignItems: "center",
-        justifyContent: "center", background: "#F0F0FF",
-        fontFamily: "'DM Sans', system-ui, sans-serif"
-      }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{
-            width: "48px", height: "48px",
-            border: "3px solid #E4E4F0", borderTopColor: "#5B5BD6",
-            borderRadius: "50%", animation: "spin 1s linear infinite",
-            margin: "0 auto 20px"
-          }} />
-          <p style={{ color: "#4B4B6B" }}>Preparing your experience...</p>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-      </div>
-    );
-  }
-
   const current = questions[step];
+  
+  // Debug logs
+  console.log("Current Role State:", role);
+  console.log("Current Questions State:", questions);
+  console.log("Current Step:", step);
+  console.log("Current Question:", current);
+  
   const progress = ((step + 1) / questions.length) * 100;
 
   return (
@@ -538,10 +567,10 @@ export default function Onboarding() {
           </div>
 
           {/* Question */}
-          <h2 className="ob-question">{current.question}</h2>
+          <h2 className="ob-question">{current?.question || "Loading..."}</h2>
 
           {/* Answer inputs */}
-          {current.type === "text" && (
+          {current?.type === "text" && (
             <>
               <input
                 className="ob-input"
@@ -563,7 +592,7 @@ export default function Onboarding() {
             </>
           )}
 
-          {current.type === "number" && (
+          {current?.type === "number" && (
             <>
               <input
                 className="ob-input"
@@ -586,7 +615,7 @@ export default function Onboarding() {
             </>
           )}
 
-          {current.type === "boolean" && (
+          {current?.type === "boolean" && (
             <div className="ob-bool-group">
               <button 
                 className="ob-bool-btn" 
@@ -607,7 +636,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {current.type === "select" && (
+          {current?.type === "select" && (
             <div className="ob-options">
               {current.options.map((opt: string) => (
                 <button
