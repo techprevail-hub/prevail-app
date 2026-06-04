@@ -273,8 +273,10 @@ export default function InterviewHistoryComponent({
                 {isExpanded && (
                   <CardContent className="p-0">
                     <div className="divide-y divide-gray-100">
-                      {session.questions.map((question, qIndex) => {
-                        const answer = session.answers?.find(a => a.question === question);
+                      {session.questions.map((question: string, qIndex: number) => {
+                          const answer = session.answers?.find(
+                            (a: any) => a.question === question
+                          );
                         const hasAnswer = !!answer?.answer;
                         
                         return (
