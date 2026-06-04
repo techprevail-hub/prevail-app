@@ -8,7 +8,7 @@ export const onboardingConfig = {
         "High School",
         "Diploma",
         "Undergraduate",
-        "Postgraduate"
+        "Postgraduate",
       ],
     },
     {

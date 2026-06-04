@@ -77,7 +77,7 @@ export default function CallbackPage() {
           if (existingUser.role) {
             console.log("User has role:", existingUser.role);
             
-            if (existingUser.role === "student" || existingUser.role === "job-seeker") {
+            if (existingUser.role === "student" || existingUser.role === "job_seeker") {
               setRedirectTo("/dashboard/seeker");
             } else if (existingUser.role === "coach") {
               setRedirectTo("/dashboard/coach");

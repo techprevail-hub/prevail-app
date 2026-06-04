@@ -18,30 +18,64 @@ export default function Onboarding() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-  const storedRole = localStorage.getItem("userRole");
+    const storedRole = localStorage.getItem("userRole");
 
-  console.log("Stored Role:", storedRole);
+    console.log("Stored Role:", storedRole);
 
-  if (!storedRole) {
-    console.log("No role found in localStorage");
-    router.push("/select-role");
-    return;
-  }
+    if (!storedRole) {
+      router.push("/select-role");
+      return;
+    }
 
-  const roleQuestions =
-    onboardingConfig[
-      storedRole as keyof typeof onboardingConfig
-    ];
+    const roleQuestions =
+      onboardingConfig[
+        storedRole as keyof typeof onboardingConfig
+      ];
 
-  console.log(
-    "Questions Found:",
-    roleQuestions
-  );
+    console.log(
+      "Questions Found:",
+      roleQuestions
+    );
 
-  setRole(storedRole);
-  setQuestions(roleQuestions || []);
-
+    setRole(storedRole);
+    setQuestions(roleQuestions || []);
   }, [router]);
+
+  // Check if role exists but no questions found
+  if (role && questions.length === 0) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          fontFamily: "'DM Sans', system-ui, sans-serif",
+          background: "#F0F0FF",
+        }}
+      >
+        <div style={{ textAlign: "center", padding: "20px" }}>
+          <h2 style={{ color: "#0F0F2D", marginBottom: "12px" }}>No Onboarding Questions Found</h2>
+          <p style={{ color: "#4B4B6B" }}>No onboarding questions found for role: {role}</p>
+          <button
+            onClick={() => router.push("/select-role")}
+            style={{
+              marginTop: "24px",
+              padding: "12px 24px",
+              background: "#5B5BD6",
+              color: "white",
+              border: "none",
+              borderRadius: "12px",
+              cursor: "pointer",
+              fontWeight: "600",
+            }}
+          >
+            Go Back to Select Role
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const goToNext = (key: string, value: any) => {
     const newAnswers = { ...answers, [key]: value };
