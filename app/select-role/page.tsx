@@ -165,12 +165,14 @@ export default function SelectRole() {
       
       // Store role in localStorage only (will be saved to DB during onboarding)
       localStorage.setItem("userRole", role);
+
       console.log("Role stored in localStorage:", role);
-      
-      // Always redirect to onboarding for new users to complete their profile
+
+      // Wait for localStorage to persist
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       console.log("Redirecting to onboarding...");
-      setLoading(false);
-      router.replace("/onboarding");
+      router.push(`/onboarding?role=${role}`);
       
     } catch (err) {
       console.error("Error selecting role:", err);
