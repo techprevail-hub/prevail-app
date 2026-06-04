@@ -15,7 +15,7 @@ export default function CallbackPage() {
   useEffect(() => {
     if (redirectTo) {
       console.log(`Redirecting to: ${redirectTo}`);
-      router.replace(redirectTo); // Use replace instead of push to avoid back button issues
+      router.replace(redirectTo);
     }
   }, [redirectTo, router]);
 
@@ -35,12 +35,9 @@ export default function CallbackPage() {
 
         const user = session.user;
         
-        // ✅ ADD TOKEN STORAGE FOR GOOGLE/LINKEDIN LOGIN
+        // Store token for API calls
         if (session?.access_token) {
-          localStorage.setItem(
-            "token",
-            session.access_token
-          );
+          localStorage.setItem("token", session.access_token);
         }
         
         console.log("User authenticated:", user.id);
@@ -53,7 +50,7 @@ export default function CallbackPage() {
           user.email?.split("@")[0] ||
           "User";
 
-        // ✅ ADD THESE localStorage SETTINGS
+        // Store user info in localStorage
         localStorage.setItem("userName", userName);
         localStorage.setItem("userEmail", user.email || "");
         localStorage.setItem("userId", user.id);
@@ -69,13 +66,14 @@ export default function CallbackPage() {
           console.error("Error checking existing user:", fetchError);
         }
 
-        // If user exists but has no role or different scenario
+        // If user exists
         if (existingUser) {
           console.log("Existing user found:", existingUser);
           
-          // If user already has a role, redirect directly
+          // If user already has a role, redirect to dashboard
           if (existingUser.role) {
             console.log("User has role:", existingUser.role);
+            localStorage.setItem("userRole", existingUser.role);
             
             if (existingUser.role === "student" || existingUser.role === "job_seeker") {
               setRedirectTo("/dashboard/seeker");
@@ -84,15 +82,12 @@ export default function CallbackPage() {
             } else if (existingUser.role === "institute") {
               setRedirectTo("/dashboard/institute");
             } else {
-              // Invalid role - send to select-role
-              localStorage.setItem("userId", user.id);
               setRedirectTo("/select-role");
             }
             return;
           } else {
-            // User exists but no role assigned
+            // User exists but no role assigned - go to select role
             console.log("Existing user has no role");
-            localStorage.setItem("userId", user.id);
             setRedirectTo("/select-role");
             return;
           }
@@ -118,18 +113,14 @@ export default function CallbackPage() {
         }
 
         console.log("User created successfully");
-
-        // Store userId in localStorage for select-role page
-        localStorage.setItem("userId", user.id);
         
-        // Redirect to select role page for new users
+        // New user - go to select role page
         setRedirectTo("/select-role");
         
       } catch (err) {
         console.error("Auth callback error:", err);
         setError(err instanceof Error ? err.message : "Authentication failed");
         
-        // Don't auto-redirect on error, let user see the error
         setTimeout(() => {
           setRedirectTo("/login");
         }, 3000);

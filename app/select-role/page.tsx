@@ -56,39 +56,54 @@ export default function SelectRole() {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(true);
-  const [isNewUser, setIsNewUser] = useState(false); // Track if this is a new user
 
   useEffect(() => {
-    const getUserId = async () => {
+    const checkUser = async () => {
       try {
-        // First check localStorage for userId (set by login/callback)
+        // Get userId from localStorage
         let storedUserId = localStorage.getItem("userId");
         
         if (storedUserId) {
           setUserId(storedUserId);
-          // Check if this is a new user (no role assigned yet)
+          
+          // Check if user already has a role
           const { data: user, error: userError } = await supabase
             .from("users")
             .select("role")
             .eq("id", storedUserId)
             .maybeSingle();
           
-          if (!userError && !user?.role) {
-            setIsNewUser(true); // This is a new user who needs onboarding
+          if (userError) {
+            console.error("Error fetching user:", userError);
+          }
+          
+          // If user already has a role, redirect to dashboard
+          if (user?.role) {
+            console.log("User already has role:", user.role);
+            localStorage.setItem("userRole", user.role);
+            
+            if (user.role === "student" || user.role === "job_seeker") {
+              router.replace("/dashboard/seeker");
+            } else if (user.role === "coach") {
+              router.replace("/dashboard/coach");
+            } else if (user.role === "institute") {
+              router.replace("/dashboard/institute");
+            } else {
+              router.replace("/dashboard");
+            }
+            return;
           }
           
           setIsChecking(false);
           return;
         }
         
-        // If not in localStorage, get from session
+        // If no userId in localStorage, get from session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError || !session?.user?.id) {
           console.error("Session error:", sessionError);
-          setError("Please sign in to continue");
-          setTimeout(() => router.replace("/login"), 2000);
-          setIsChecking(false);
+          router.replace("/login");
           return;
         }
         
@@ -96,20 +111,16 @@ export default function SelectRole() {
         setUserId(userId);
         localStorage.setItem("userId", userId);
         
-        // Check if user already has a role
+        // Check if user has role
         const { data: user, error: userError } = await supabase
           .from("users")
           .select("role")
           .eq("id", userId)
           .maybeSingle();
         
-        if (userError) {
-          console.error("Error fetching user:", userError);
-        }
-        
-        // If user already has a role, redirect directly to dashboard
         if (user?.role) {
-          // Map role to dashboard
+          localStorage.setItem("userRole", user.role);
+          
           if (user.role === "student" || user.role === "job_seeker") {
             router.replace("/dashboard/seeker");
           } else if (user.role === "coach") {
@@ -120,19 +131,17 @@ export default function SelectRole() {
             router.replace("/dashboard");
           }
           return;
-        } else {
-          setIsNewUser(true); // New user needs onboarding
         }
+        
+        setIsChecking(false);
+        
       } catch (error) {
-        console.error("Error getting user:", error);
-        setError("Authentication error. Please sign in again.");
-        setTimeout(() => router.replace("/login"), 2000);
-      } finally {
+        console.error("Error checking user:", error);
         setIsChecking(false);
       }
     };
     
-    getUserId();
+    checkUser();
   }, [router]);
 
   const selectRole = async (role: string) => {
@@ -155,29 +164,13 @@ export default function SelectRole() {
         throw new Error("User not authenticated. Please sign in again.");
       }
       
-      // REMOVED: Supabase update to users table - role will be saved during onboarding
-      // The role will be updated in the users table when onboarding completes
-      
-      // Store role in localStorage only
+      // Store role in localStorage only (will be saved to DB during onboarding)
       localStorage.setItem("userRole", role);
+      console.log("Role stored in localStorage:", role);
       
-      // IMPORTANT: For new users, redirect to onboarding page
-      // For existing users who somehow reached here, redirect to dashboard
-      if (isNewUser) {
-        // New user - go to onboarding
-        router.replace("/onboarding");
-      } else {
-        // Existing user - go to dashboard
-        if (role === "student" || role === "job_seeker") {
-          router.replace("/dashboard/seeker");
-        } else if (role === "coach") {
-          router.replace("/dashboard/coach");
-        } else if (role === "institute") {
-          router.replace("/dashboard/institute");
-        } else {
-          router.replace("/dashboard");
-        }
-      }
+      // Always redirect to onboarding for new users to complete their profile
+      console.log("Redirecting to onboarding...");
+      router.replace("/onboarding");
       
     } catch (err) {
       console.error("Error selecting role:", err);
