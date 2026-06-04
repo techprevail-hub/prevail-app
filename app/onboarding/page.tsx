@@ -18,28 +18,26 @@ export default function Onboarding() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-  const storedRole = localStorage.getItem("userRole");
+    const storedRole = localStorage.getItem("userRole");
 
-  console.log("Stored Role:", storedRole);
+    console.log("userRole from localStorage:", storedRole);
+    console.log("Stored Role:", storedRole);
 
-  if (!storedRole) {
-    console.log("No role found in localStorage");
-    router.push("/select-role");
-    return;
-  }
+    if (!storedRole) {
+      console.log("No role found in localStorage");
+      router.push("/select-role");
+      return;
+    }
 
-  const roleQuestions =
-    onboardingConfig[
-      storedRole as keyof typeof onboardingConfig
-    ];
+    const roleQuestions =
+      onboardingConfig[
+        storedRole as keyof typeof onboardingConfig
+      ];
 
-  console.log(
-    "Questions Found:",
-    roleQuestions
-  );
+    console.log("Questions Found:", roleQuestions);
 
-  setRole(storedRole);
-  setQuestions(roleQuestions || []);
+    setRole(storedRole);
+    setQuestions(roleQuestions || []);
 
   }, [router]);
 
@@ -202,6 +200,10 @@ export default function Onboarding() {
   }
 
   const current = questions[step];
+
+    if (!current) {
+      return null;
+    }
   const progress = ((step + 1) / questions.length) * 100;
 
   return (

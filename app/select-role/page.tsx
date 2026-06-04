@@ -145,7 +145,6 @@ export default function SelectRole() {
   }, [router]);
 
   const selectRole = async (role: string) => {
-    setLoading(true);
     setError(null);
     
     try {
@@ -170,6 +169,7 @@ export default function SelectRole() {
       
       // Always redirect to onboarding for new users to complete their profile
       console.log("Redirecting to onboarding...");
+      setLoading(false);
       router.replace("/onboarding");
       
     } catch (err) {

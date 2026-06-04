@@ -15,7 +15,7 @@ export default function CallbackPage() {
   useEffect(() => {
     if (redirectTo) {
       console.log(`Redirecting to: ${redirectTo}`);
-      router.replace(redirectTo); // Use replace instead of push to avoid back button issues
+      router.replace(redirectTo);
     }
   }, [redirectTo, router]);
 
@@ -35,12 +35,9 @@ export default function CallbackPage() {
 
         const user = session.user;
         
-        // ✅ ADD TOKEN STORAGE FOR GOOGLE/LINKEDIN LOGIN
+        // Store token for API calls
         if (session?.access_token) {
-          localStorage.setItem(
-            "token",
-            session.access_token
-          );
+          localStorage.setItem("token", session.access_token);
         }
         
         console.log("User authenticated:", user.id);
@@ -53,7 +50,7 @@ export default function CallbackPage() {
           user.email?.split("@")[0] ||
           "User";
 
-        // ✅ ADD THESE localStorage SETTINGS
+        // Store user info in localStorage
         localStorage.setItem("userName", userName);
         localStorage.setItem("userEmail", user.email || "");
         localStorage.setItem("userId", user.id);
@@ -69,24 +66,45 @@ export default function CallbackPage() {
           console.error("Error checking existing user:", fetchError);
         }
 
-        // If user exists but has no role or different scenario
+        // If user exists
         if (existingUser) {
           console.log("Existing user found:", existingUser);
           
-          // If user already has a role, redirect directly
+          // If user already has a role
           if (existingUser.role) {
             console.log("User has role:", existingUser.role);
             
-            if (existingUser.role === "student" || existingUser.role === "job_seeker") {
-              setRedirectTo("/dashboard/seeker");
-            } else if (existingUser.role === "coach") {
-              setRedirectTo("/dashboard/coach");
-            } else if (existingUser.role === "institute") {
-              setRedirectTo("/dashboard/institute");
+            // Check if onboarding already exists for this user
+            const { data: onboardingData, error: onboardingError } = await supabase
+              .from("onboarding")
+              .select("id")
+              .eq("user_id", user.id)
+              .maybeSingle();
+
+            if (onboardingError) {
+              console.error("Error checking onboarding:", onboardingError);
+            }
+
+            console.log("Onboarding data exists:", !!onboardingData);
+
+            // If onboarding data exists, user has completed onboarding
+            if (onboardingData) {
+              console.log("User has completed onboarding, redirecting to dashboard");
+              // User has completed onboarding - go to dashboard
+              if (existingUser.role === "student" || existingUser.role === "job_seeker") {
+                setRedirectTo("/dashboard/seeker");
+              } else if (existingUser.role === "coach") {
+                setRedirectTo("/dashboard/coach");
+              } else if (existingUser.role === "institute") {
+                setRedirectTo("/dashboard/institute");
+              } else {
+                setRedirectTo("/select-role");
+              }
             } else {
-              // Invalid role - send to select-role
-              localStorage.setItem("userId", user.id);
-              setRedirectTo("/select-role");
+              console.log("User has role but no onboarding data, redirecting to onboarding");
+              // User has role but hasn't completed onboarding
+              localStorage.setItem("userRole", existingUser.role);
+              setRedirectTo("/onboarding");
             }
             return;
           } else {
@@ -129,7 +147,6 @@ export default function CallbackPage() {
         console.error("Auth callback error:", err);
         setError(err instanceof Error ? err.message : "Authentication failed");
         
-        // Don't auto-redirect on error, let user see the error
         setTimeout(() => {
           setRedirectTo("/login");
         }, 3000);
