@@ -44,7 +44,7 @@ interface InterviewSession {
 }
 
 interface InterviewHistoryProps {
-  history: InterviewSession[];
+  history: any[];
   interviewType: string;
   loadingHistory: boolean;
   onRefresh: () => void;
@@ -117,18 +117,18 @@ export default function InterviewHistoryComponent({
   );
 
   // Calculate completed answers count
-  const getCompletedCount = (session: InterviewSession) => {
+  const getCompletedCount = (session: any) => {
     return session.answers?.length || 0;
   };
 
   // Calculate average score for completed session
-  const getAverageScore = (session: InterviewSession) => {
+  const getAverageScore = (session: any) => {
     if (session.score) return session.score;
     return null;
   };
 
   // Handle edit for a specific question
-  const handleEditQuestion = (session: InterviewSession, questionIndex: number) => {
+  const handleEditQuestion = (session: any, questionIndex: number) => {
     const editItem = {
       id: session.id,
       interview_type: session.interview_type,

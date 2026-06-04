@@ -1191,7 +1191,7 @@ export default function InterviewPage() {
         {/* ── History Section ── */}
         {showHistory && (
           <InterviewHistoryComponent
-            history={filteredHistory}
+            history={filteredHistory as any[]}
             interviewType={interviewType}
             loadingHistory={loadingHistory}
             onRefresh={fetchInterviewHistory}
