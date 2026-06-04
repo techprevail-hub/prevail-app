@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function Onboarding() {
+  console.log("ONBOARDING COMPONENT RENDERED");
+
   const router = useRouter();
 
   const [role, setRole] = useState<string | null>(null);
@@ -16,7 +18,7 @@ export default function Onboarding() {
   const [textValue, setTextValue] = useState("");
   const [animating, setAnimating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // New loading state
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const storedRole = localStorage.getItem("userRole");
@@ -191,7 +193,7 @@ export default function Onboarding() {
         // Show specific error message based on error type
         if (insertError.code === "23505") {
           alert("Your information was already saved. Redirecting to dashboard...");
-          // UPDATED: Role-based redirect after onboarding complete with correct role condition
+          // Role-based redirect after onboarding complete with correct role condition
           if (role === "student" || role === "job_seeker") {
             window.location.href = "/dashboard/seeker";
           } else if (role === "coach") {
@@ -209,7 +211,7 @@ export default function Onboarding() {
 
       console.log("Onboarding data saved successfully");
       
-      // ✅ UPDATE USER ROLE IN USERS TABLE
+      // ✅ UPDATE USER ROLE IN USERS TABLE (This is where the role should be saved permanently)
       const { error: roleUpdateError } = await supabase
         .from("users")
         .update({
@@ -229,7 +231,7 @@ export default function Onboarding() {
       // Add a delay to ensure the database write is complete
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // UPDATED: Role-based redirect after onboarding complete with correct role condition
+      // Role-based redirect after onboarding complete with correct role condition
       if (role === "student" || role === "job_seeker") {
         window.location.href = "/dashboard/seeker";
       } else if (role === "coach") {

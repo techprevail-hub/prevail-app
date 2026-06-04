@@ -1,3 +1,5 @@
+// lib/onboardingConfig.ts
+
 export const onboardingConfig = {
   student: [
     {
@@ -40,7 +42,6 @@ export const onboardingConfig = {
       type: "boolean",
     },
   ],
-
   institute: [
     {
       key: "institute_type",
@@ -58,7 +59,6 @@ export const onboardingConfig = {
       type: "text",
     },
   ],
-
   company: [
     {
       key: "company_size",
@@ -76,7 +76,6 @@ export const onboardingConfig = {
       type: "text",
     },
   ],
-
   coach: [
     {
       key: "experience",
@@ -89,4 +88,14 @@ export const onboardingConfig = {
       type: "text",
     },
   ],
+};
+
+// Optional: Add a helper function to validate role exists
+export const getOnboardingQuestions = (role: string) => {
+  return onboardingConfig[role as keyof typeof onboardingConfig] || [];
+};
+
+// Optional: Add a function to check if role has onboarding questions
+export const hasOnboardingQuestions = (role: string): boolean => {
+  return !!onboardingConfig[role as keyof typeof onboardingConfig];
 };

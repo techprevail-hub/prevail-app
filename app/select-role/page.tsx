@@ -155,18 +155,10 @@ export default function SelectRole() {
         throw new Error("User not authenticated. Please sign in again.");
       }
       
-      // Update role in 'users' table
-      const { error: updateError } = await supabase
-        .from("users")
-        .update({ role: role })
-        .eq("id", id);
+      // REMOVED: Supabase update to users table - role will be saved during onboarding
+      // The role will be updated in the users table when onboarding completes
       
-      if (updateError) {
-        console.error("Supabase update error:", updateError);
-        throw new Error(`Failed to update role: ${updateError.message}`);
-      }
-      
-      // Store role in localStorage
+      // Store role in localStorage only
       localStorage.setItem("userRole", role);
       
       // IMPORTANT: For new users, redirect to onboarding page
