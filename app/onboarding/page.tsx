@@ -18,13 +18,29 @@ export default function Onboarding() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const storedRole = localStorage.getItem("userRole");
-    if (!storedRole) {
-      router.push("/select-role");
-      return;
-    }
-    setRole(storedRole);
-    setQuestions(onboardingConfig[storedRole as keyof typeof onboardingConfig] || []);
+  const storedRole = localStorage.getItem("userRole");
+
+  console.log("Stored Role:", storedRole);
+
+  if (!storedRole) {
+    console.log("No role found in localStorage");
+    router.push("/select-role");
+    return;
+  }
+
+  const roleQuestions =
+    onboardingConfig[
+      storedRole as keyof typeof onboardingConfig
+    ];
+
+  console.log(
+    "Questions Found:",
+    roleQuestions
+  );
+
+  setRole(storedRole);
+  setQuestions(roleQuestions || []);
+
   }, [router]);
 
   const goToNext = (key: string, value: any) => {
@@ -164,7 +180,7 @@ export default function Onboarding() {
     }, 220);
   };
 
-  if (!questions.length) {
+  if (!role) {
     return (
       <div style={{
         minHeight: "100vh", display: "flex", alignItems: "center",

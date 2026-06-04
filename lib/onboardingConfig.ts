@@ -1,4 +1,27 @@
 export const onboardingConfig = {
+  student: [
+    {
+      key: "education_level",
+      question: "What is your current education level?",
+      type: "select",
+      options: [
+        "High School",
+        "Diploma",
+        "Undergraduate",
+        "Postgraduate"
+      ],
+    },
+    {
+      key: "field_of_study",
+      question: "What is your field of study?",
+      type: "text",
+    },
+    {
+      key: "graduation_year",
+      question: "What is your expected graduation year?",
+      type: "number",
+    },
+  ],
   job_seeker: [
     {
       key: "career_stage",
