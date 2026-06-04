@@ -5,11 +5,9 @@ import { useEffect, useState } from "react";
 import { onboardingConfig } from "@/lib/onboardingConfig";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import { useSearchParams } from "next/navigation";
 
 export default function Onboarding() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [role, setRole] = useState<string | null>(null);
   const [questions, setQuestions] = useState<any[]>([]);
@@ -20,25 +18,14 @@ export default function Onboarding() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-  const roleFromUrl = searchParams.get("role");
-
-  console.log("Role from URL:", roleFromUrl);
-
-  if (!roleFromUrl) {
-    router.replace("/select-role");
-    return;
-  }
-
-  const roleQuestions =
-    onboardingConfig[
-      roleFromUrl as keyof typeof onboardingConfig
-    ] || [];
-
-  console.log("Questions Found:", roleQuestions);
-
-  setRole(roleFromUrl);
-  setQuestions(roleQuestions);
-  }, [searchParams, router]);
+    const storedRole = localStorage.getItem("userRole");
+    if (!storedRole) {
+      router.push("/select-role");
+      return;
+    }
+    setRole(storedRole);
+    setQuestions(onboardingConfig[storedRole as keyof typeof onboardingConfig] || []);
+  }, [router]);
 
   const goToNext = (key: string, value: any) => {
     const newAnswers = { ...answers, [key]: value };
@@ -177,7 +164,7 @@ export default function Onboarding() {
     }, 220);
   };
 
-  if (!role) {
+  if (!questions.length) {
     return (
       <div style={{
         minHeight: "100vh", display: "flex", alignItems: "center",
@@ -198,23 +185,7 @@ export default function Onboarding() {
     );
   }
 
-  if (!role || questions.length === 0) {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      Loading onboarding...
-    </div>
-  );
-}
   const current = questions[step];
-
-
   const progress = ((step + 1) / questions.length) * 100;
 
   return (
