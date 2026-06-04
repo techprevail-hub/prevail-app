@@ -7,8 +7,10 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function Onboarding() {
-  console.log("ONBOARDING COMPONENT RENDERED");
-
+  console.log("=== ONBOARDING PAGE LOADED ===");
+  console.log("localStorage userRole:", localStorage.getItem("userRole"));
+  console.log("localStorage userId:", localStorage.getItem("userId"));
+  
   const router = useRouter();
 
   const [role, setRole] = useState<string | null>(null);
@@ -19,108 +21,54 @@ export default function Onboarding() {
   const [animating, setAnimating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const storedRole = localStorage.getItem("userRole");
+    const storedUserId = localStorage.getItem("userId");
 
+    console.log("=== USEFFECT TRIGGERED ===");
     console.log("Stored Role:", storedRole);
+    console.log("Stored UserId:", storedUserId);
+    console.log("Available onboarding config keys:", Object.keys(onboardingConfig));
 
     if (!storedRole) {
-      setIsLoading(false);
-      router.push("/select-role");
+      console.log("No role found, redirecting to select-role");
+      router.replace("/select-role");
       return;
     }
 
-    const roleQuestions =
-      onboardingConfig[
-        storedRole as keyof typeof onboardingConfig
-      ];
+    // Check if role exists in config
+    const roleQuestions = onboardingConfig[storedRole as keyof typeof onboardingConfig];
+    
+    console.log(`Questions found for role "${storedRole}":`, roleQuestions);
 
-    console.log("Questions Found:", roleQuestions);
+    if (!roleQuestions || roleQuestions.length === 0) {
+      console.error(`No onboarding questions found for role: ${storedRole}`);
+      setError(`No onboarding questions found for role: ${storedRole}`);
+      
+      // Redirect to dashboard after 2 seconds
+      setTimeout(() => {
+        if (storedRole === "student" || storedRole === "job_seeker") {
+          router.replace("/dashboard/seeker");
+        } else if (storedRole === "coach") {
+          router.replace("/dashboard/coach");
+        } else if (storedRole === "institute") {
+          router.replace("/dashboard/institute");
+        } else {
+          router.replace("/dashboard");
+        }
+      }, 2000);
+      return;
+    }
 
+    console.log("Setting role and questions...");
     setRole(storedRole);
-    setQuestions(roleQuestions || []);
-
+    setQuestions(roleQuestions);
     setIsLoading(false);
+    console.log("State updated successfully, questions length:", roleQuestions.length);
+    
   }, [router]);
-
-  // Check for loading state
-  if (isLoading) {
-    return (
-      <div style={{
-        minHeight: "100vh", display: "flex", alignItems: "center",
-        justifyContent: "center", background: "#F0F0FF",
-        fontFamily: "'DM Sans', system-ui, sans-serif"
-      }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{
-            width: "48px", height: "48px",
-            border: "3px solid #E4E4F0", borderTopColor: "#5B5BD6",
-            borderRadius: "50%", animation: "spin 1s linear infinite",
-            margin: "0 auto 20px"
-          }} />
-          <p style={{ color: "#4B4B6B" }}>Preparing your experience...</p>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if no role found
-  if (!role) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          background: "#F0F0FF",
-          fontFamily: "'DM Sans', system-ui, sans-serif",
-        }}
-      >
-        <div style={{ textAlign: "center", padding: "20px" }}>
-          <p style={{ color: "#4B4B6B", fontSize: "16px" }}>No role found. Redirecting...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if role exists but no questions found
-  if (role && questions.length === 0) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          fontFamily: "'DM Sans', system-ui, sans-serif",
-          background: "#F0F0FF",
-        }}
-      >
-        <div style={{ textAlign: "center", padding: "20px" }}>
-          <h2 style={{ color: "#0F0F2D", marginBottom: "12px" }}>No Onboarding Questions Found</h2>
-          <p style={{ color: "#4B4B6B" }}>No onboarding questions found for role: {role}</p>
-          <button
-            onClick={() => router.push("/select-role")}
-            style={{
-              marginTop: "24px",
-              padding: "12px 24px",
-              background: "#5B5BD6",
-              color: "white",
-              border: "none",
-              borderRadius: "12px",
-              cursor: "pointer",
-              fontWeight: "600",
-            }}
-          >
-            Go Back to Select Role
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   const goToNext = (key: string, value: any) => {
     const newAnswers = { ...answers, [key]: value };
@@ -155,6 +103,7 @@ export default function Onboarding() {
     
     try {
       const userId = localStorage.getItem("userId");
+      const userRole = localStorage.getItem("userRole");
 
       if (!userId) {
         console.error("User ID not found");
@@ -171,7 +120,6 @@ export default function Onboarding() {
 
       if (deleteError) {
         console.error("Error deleting existing onboarding:", deleteError);
-        // Continue anyway, maybe there's no existing data
       }
 
       // Now insert the new onboarding data
@@ -180,7 +128,7 @@ export default function Onboarding() {
         .insert([
           {
             user_id: userId,
-            role: role,
+            role: userRole,
             data: finalData,
             created_at: new Date().toISOString(),
           }
@@ -190,53 +138,40 @@ export default function Onboarding() {
         console.error("Error saving onboarding:", insertError);
         setIsSubmitting(false);
         
-        // Show specific error message based on error type
         if (insertError.code === "23505") {
           alert("Your information was already saved. Redirecting to dashboard...");
-          // Role-based redirect after onboarding complete with correct role condition
-          if (role === "student" || role === "job_seeker") {
-            window.location.href = "/dashboard/seeker";
-          } else if (role === "coach") {
-            window.location.href = "/dashboard/coach";
-          } else if (role === "institute") {
-            window.location.href = "/dashboard/institute";
-          } else {
-            window.location.href = "/dashboard";
-          }
         } else {
           alert("There was an error saving your information. Please try again.");
+          return;
         }
-        return;
       }
 
       console.log("Onboarding data saved successfully");
       
-      // ✅ UPDATE USER ROLE IN USERS TABLE (This is where the role should be saved permanently)
+      // ✅ UPDATE USER ROLE IN USERS TABLE (Save role permanently)
       const { error: roleUpdateError } = await supabase
         .from("users")
         .update({
-          role: role,
+          role: userRole,
         })
         .eq("id", userId);
 
       if (roleUpdateError) {
         console.error("Role update error:", roleUpdateError);
-        setIsSubmitting(false);
-        alert("There was an error updating your role. Please try again.");
-        return;
+        // Continue anyway, the onboarding data is saved
+      } else {
+        console.log("Role updated successfully in users table");
       }
-      
-      console.log("Role updated successfully");
       
       // Add a delay to ensure the database write is complete
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Role-based redirect after onboarding complete with correct role condition
-      if (role === "student" || role === "job_seeker") {
+      // Redirect based on role
+      if (userRole === "student" || userRole === "job_seeker") {
         window.location.href = "/dashboard/seeker";
-      } else if (role === "coach") {
+      } else if (userRole === "coach") {
         window.location.href = "/dashboard/coach";
-      } else if (role === "institute") {
+      } else if (userRole === "institute") {
         window.location.href = "/dashboard/institute";
       } else {
         window.location.href = "/dashboard";
@@ -259,14 +194,69 @@ export default function Onboarding() {
     }, 220);
   };
 
+  // Show error state
+  if (error) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#F0F0FF",
+        fontFamily: "'DM Sans', system-ui, sans-serif"
+      }}>
+        <div style={{ textAlign: "center", padding: "20px" }}>
+          <div style={{
+            width: "48px",
+            height: "48px",
+            background: "#fee2e2",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 20px"
+          }}>
+            <span style={{ fontSize: "24px" }}>⚠️</span>
+          </div>
+          <h2 style={{ color: "#0F0F2D", marginBottom: "8px" }}>Configuration Error</h2>
+          <p style={{ color: "#4B4B6B" }}>{error}</p>
+          <p style={{ color: "#9999BB", marginTop: "16px", fontSize: "14px" }}>
+            Redirecting to dashboard...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#F0F0FF",
+        fontFamily: "'DM Sans', system-ui, sans-serif"
+      }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{
+            width: "48px",
+            height: "48px",
+            border: "3px solid #E4E4F0",
+            borderTopColor: "#5B5BD6",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+            margin: "0 auto 20px"
+          }} />
+          <p style={{ color: "#4B4B6B" }}>Loading your questions...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
   const current = questions[step];
-  
-  // Debug logs
-  console.log("Current Role State:", role);
-  console.log("Current Questions State:", questions);
-  console.log("Current Step:", step);
-  console.log("Current Question:", current);
-  
   const progress = ((step + 1) / questions.length) * 100;
 
   return (
@@ -350,7 +340,6 @@ export default function Onboarding() {
           margin-bottom: 32px;
         }
 
-        /* Text / Number input */
         .ob-input {
           width: 100%;
           padding: 16px 20px;
@@ -372,7 +361,6 @@ export default function Onboarding() {
         }
         .ob-input::placeholder { color: #C0C0D8; }
 
-        /* Continue / Submit button */
         .ob-btn-primary {
           width: 100%;
           padding: 16px 24px;
@@ -398,11 +386,8 @@ export default function Onboarding() {
         .ob-btn-primary:disabled {
           opacity: 0.6;
           cursor: not-allowed;
-          transform: none;
-          box-shadow: none;
         }
 
-        /* Select options */
         .ob-options {
           display: flex;
           flex-direction: column;
@@ -431,22 +416,7 @@ export default function Onboarding() {
           color: #5B5BD6;
           transform: translateX(3px);
         }
-        .ob-option:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-        .ob-option .ob-option-arrow {
-          opacity: 0;
-          transition: opacity 0.18s ease, transform 0.18s ease;
-          color: #5B5BD6;
-          font-size: 18px;
-        }
-        .ob-option:hover:not(:disabled) .ob-option-arrow {
-          opacity: 1;
-          transform: translateX(3px);
-        }
 
-        /* Boolean buttons */
         .ob-bool-group {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -472,25 +442,8 @@ export default function Onboarding() {
           border-color: #5B5BD6;
           background: #F5F5FF;
           transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(91,91,214,.12);
-        }
-        .ob-bool-btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-        .ob-bool-btn .ob-bool-icon {
-          font-size: 28px;
-        }
-        .ob-bool-btn .ob-bool-label {
-          font-size: 15px;
-          font-weight: 700;
-          color: #0F0F2D;
-        }
-        .ob-bool-btn:hover:not(:disabled) .ob-bool-label {
-          color: #5B5BD6;
         }
 
-        /* Footer nav */
         .ob-footer {
           display: flex;
           align-items: center;
@@ -509,7 +462,6 @@ export default function Onboarding() {
           border: none;
           cursor: pointer;
           padding: 8px 0;
-          transition: color 0.18s ease;
         }
         .ob-back-btn:hover:not(:disabled) { color: #5B5BD6; }
         .ob-back-btn:disabled { opacity: 0.3; cursor: not-allowed; }
@@ -553,25 +505,18 @@ export default function Onboarding() {
       `}</style>
 
       <div className="ob-root">
-
-        {/* Top badge */}
         <div style={{ width: "100%", maxWidth: "560px", marginBottom: "12px" }}>
-          <span className="ob-badge">ONBOARDING — {role?.replace("_", " ").toUpperCase()}</span>
+          <span className="ob-badge">ONBOARDING — {role?.toUpperCase()}</span>
         </div>
 
-        {/* Main card */}
         <div className={`ob-card${animating ? " animating" : ""}`}>
-
-          {/* Progress */}
           <div className="ob-step-label">Step {step + 1} of {questions.length}</div>
           <div className="ob-progress-bar">
             <div className="ob-progress-fill" style={{ width: `${progress}%` }} />
           </div>
 
-          {/* Question */}
-          <h2 className="ob-question">{current?.question || "Loading..."}</h2>
+          <h2 className="ob-question">{current?.question}</h2>
 
-          {/* Answer inputs */}
           {current?.type === "text" && (
             <>
               <input
@@ -654,7 +599,6 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Footer: back + dots */}
           <div className="ob-footer">
             <button
               className="ob-back-btn"
@@ -675,14 +619,12 @@ export default function Onboarding() {
           </div>
         </div>
 
-        {/* Footnote */}
         <div className="ob-footnote">
           <svg viewBox="0 0 20 20" fill="none" stroke="#5B5BD6" strokeWidth="2" width="18" height="18">
             <circle cx="10" cy="10" r="9" /><path d="M6 10l3 3 5-5" />
           </svg>
           Your answers help us personalize your Career Core AI experience
         </div>
-
       </div>
     </>
   );
