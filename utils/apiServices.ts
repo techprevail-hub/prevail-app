@@ -3,7 +3,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Helper to get auth headers
-const getAuthHeaders = async () => {
+const getAuthHeaders = async (isFormData: boolean = false) => {
   const token = localStorage.getItem("token");
   const expiresAt = localStorage.getItem("expiresAt");
 
@@ -24,10 +24,17 @@ const getAuthHeaders = async () => {
   }
 
   const newToken = localStorage.getItem("token");
-  return {
-    "Content-Type": "application/json",
+  
+  // For FormData, don't set Content-Type - let the browser set it with boundary
+  const headers: Record<string, string> = {
     Authorization: `Bearer ${newToken}`,
   };
+  
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  return headers;
 };
 
 // Refresh token function
@@ -65,7 +72,7 @@ const refreshToken = async (): Promise<boolean> => {
 export const api = {
   async get(endpoint: string) {
     try {
-      const headers = await getAuthHeaders();
+      const headers = await getAuthHeaders(false);
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "GET",
         headers,
@@ -76,7 +83,7 @@ export const api = {
         const refreshed = await refreshToken();
         if (refreshed) {
           // Retry the request with new token
-          const newHeaders = await getAuthHeaders();
+          const newHeaders = await getAuthHeaders(false);
           const retryResponse = await fetch(`${API_URL}${endpoint}`, {
             method: "GET",
             headers: newHeaders,
@@ -99,23 +106,29 @@ export const api = {
     }
   },
 
-  async post(endpoint: string, body: any) {
+  async post(endpoint: string, body: any, options?: { isFormData?: boolean }) {
+    const isFormData = options?.isFormData || body instanceof FormData;
+    
     try {
-      const headers = await getAuthHeaders();
+      const headers = await getAuthHeaders(isFormData);
+      
+      // Don't stringify FormData
+      const requestBody = isFormData ? body : JSON.stringify(body);
+      
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
         headers,
-        body: JSON.stringify(body),
+        body: requestBody,
       });
 
       if (response.status === 401) {
         const refreshed = await refreshToken();
         if (refreshed) {
-          const newHeaders = await getAuthHeaders();
+          const newHeaders = await getAuthHeaders(isFormData);
           const retryResponse = await fetch(`${API_URL}${endpoint}`, {
             method: "POST",
             headers: newHeaders,
-            body: JSON.stringify(body),
+            body: requestBody,
           });
           const retryData = await retryResponse.json();
           return retryData;
@@ -134,23 +147,27 @@ export const api = {
     }
   },
 
-  async put(endpoint: string, body: any) {
+  async put(endpoint: string, body: any, options?: { isFormData?: boolean }) {
+    const isFormData = options?.isFormData || body instanceof FormData;
+    
     try {
-      const headers = await getAuthHeaders();
+      const headers = await getAuthHeaders(isFormData);
+      const requestBody = isFormData ? body : JSON.stringify(body);
+      
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "PUT",
         headers,
-        body: JSON.stringify(body),
+        body: requestBody,
       });
 
       if (response.status === 401) {
         const refreshed = await refreshToken();
         if (refreshed) {
-          const newHeaders = await getAuthHeaders();
+          const newHeaders = await getAuthHeaders(isFormData);
           const retryResponse = await fetch(`${API_URL}${endpoint}`, {
             method: "PUT",
             headers: newHeaders,
-            body: JSON.stringify(body),
+            body: requestBody,
           });
           const retryData = await retryResponse.json();
           return retryData;
@@ -171,7 +188,7 @@ export const api = {
 
   async delete(endpoint: string) {
     try {
-      const headers = await getAuthHeaders();
+      const headers = await getAuthHeaders(false);
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "DELETE",
         headers,
@@ -180,7 +197,7 @@ export const api = {
       if (response.status === 401) {
         const refreshed = await refreshToken();
         if (refreshed) {
-          const newHeaders = await getAuthHeaders();
+          const newHeaders = await getAuthHeaders(false);
           const retryResponse = await fetch(`${API_URL}${endpoint}`, {
             method: "DELETE",
             headers: newHeaders,

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Upload, FileText, CheckCircle, AlertCircle, TrendingUp,
-  Briefcase, Lightbulb, ArrowRight, Download, RefreshCw,
+  Briefcase, Lightbulb, ArrowRight, RefreshCw,
   Shield, X, ThumbsUp, ThumbsDown, Sparkles, Target,
   Zap, BarChart3, ChevronRight, Brain, ScanSearch, Cpu, BadgeCheck,
   History,
@@ -11,6 +11,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { api } from "@/utils/apiServices";
 
 interface ResumeResult {
   id?: string;
@@ -25,6 +26,21 @@ interface ResumeResult {
   recommendedKeywords: string[];
   ai_summary: string;
   aiGeneratedAt?: string;
+}
+
+interface HistoryItem {
+  id: string;
+  file_name: string;
+  extracted_text: string;
+  score: number;
+  ats_score: number;
+  skills: string[];
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
+  recommended_keywords: string[];
+  ai_summary: string;
+  ai_generated_at: string;
 }
 
 const getScoreColor = (s: number) => {
@@ -206,8 +222,6 @@ export default function ResumeAnalysisPage() {
   const [history, setHistory]       = useState<ResumeResult[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
   // Fetch resume history on page load
   useEffect(() => {
     fetchResumeHistory();
@@ -216,29 +230,29 @@ export default function ResumeAnalysisPage() {
   const fetchResumeHistory = async () => {
     try {
       setLoadingHistory(true);
-      const token = localStorage.getItem("token");
+      setError("");
       
-      if (!token) {
-        console.log("No token found, skipping history fetch");
-        return;
+      const response = await api.get("/api/resume/history");
+      
+      console.log("History API response:", response);
+      
+      // Handle different response structures
+      let data = response;
+      if (response && response.data) {
+        data = response.data;
       }
-
-      const response = await fetch(`${API_URL}/api/resume/history`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
       
-      if (data.success && data.data && data.data.length > 0) {
+      // Check if response has success property
+      const isSuccess = response.success !== undefined ? response.success : true;
+      
+      if (isSuccess && data && Array.isArray(data) && data.length > 0) {
         // Map the backend data to match our interface
-        const mappedHistory = data.data.map((item: any) => ({
+        const mappedHistory = data.map((item: HistoryItem) => ({
           id: item.id,
           fileName: item.file_name,
           extractedText: item.extracted_text,
-          score: item.score,
-          ats_score: item.ats_score,
+          score: item.score || 0,
+          ats_score: item.ats_score || 0,
           skills: item.skills || [],
           strengths: item.strengths || [],
           weaknesses: item.weaknesses || [],
@@ -254,11 +268,22 @@ export default function ResumeAnalysisPage() {
         console.log("Latest resume analysis loaded:", mappedHistory[0]);
         console.log("Total history items:", mappedHistory.length);
         console.log("Keywords in latest:", mappedHistory[0].recommendedKeywords);
-      } else {
+      } else if (isSuccess && data && data.length === 0) {
         console.log("No resume history found");
+        setHistory([]);
+        setResult(null);
+      } else {
+        console.log("Invalid response format:", response);
+        if (response.message) {
+          setError(response.message);
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching resume history:", err);
+      // Don't show error for empty history - just log it
+      if (err.message && !err.message.includes("Session expired")) {
+        console.log("Could not fetch resume history:", err.message);
+      }
     } finally {
       setLoadingHistory(false);
     }
@@ -282,55 +307,58 @@ export default function ResumeAnalysisPage() {
   };
 
   const handleUpload = async () => {
-    setError(""); setResult(null);
+    setError(""); 
+    setResult(null);
     if (!file) return setError("Please select a resume file.");
-    if (!API_URL) return setError("API URL is not configured.");
     setLoading(true);
+    
     try {
-      const token = localStorage.getItem("token");
-      if (!token) return setError("Authentication token not found. Please login again.");
       const formData = new FormData();
       formData.append("resume", file);
-      const res  = await fetch(`${API_URL}/api/resume/upload`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.success) {
+      
+      // Log FormData contents for debugging
+      console.log("Uploading file:", file.name, file.type, file.size);
+      
+      // Use api.post for the upload - matching the pattern from progress page
+      const response = await api.post("/api/resume/upload", formData);
+      
+      console.log("Upload response:", response);
+      
+      if (response && response.success && response.data) {
+        const data = response.data;
         // Map the response data to match our interface
         const mappedResult = {
-          id: data.data.id,
-          fileName: data.data.file_name,
-          extractedText: data.data.extracted_text,
-          score: data.data.score,
-          ats_score: data.data.ats_score,
-          skills: data.data.skills || [],
-          strengths: data.data.strengths || [],
-          weaknesses: data.data.weaknesses || [],
-          suggestions: data.data.suggestions || [],
-          recommendedKeywords: data.data.recommended_keywords || [],
-          ai_summary: data.data.ai_summary || "",
-          aiGeneratedAt: data.data.ai_generated_at,
+          id: data.id,
+          fileName: data.file_name,
+          extractedText: data.extracted_text,
+          score: data.score || 0,
+          ats_score: data.ats_score || 0,
+          skills: data.skills || [],
+          strengths: data.strengths || [],
+          weaknesses: data.weaknesses || [],
+          suggestions: data.suggestions || [],
+          recommendedKeywords: data.recommended_keywords || [],
+          ai_summary: data.ai_summary || "",
+          aiGeneratedAt: data.ai_generated_at,
         };
         setResult(mappedResult);
         console.log("Upload response keywords:", mappedResult.recommendedKeywords);
         // Refresh history after successful upload
         await fetchResumeHistory();
       } else {
-        setError(data.message || "Resume upload failed.");
+        setError(response?.message || "Resume upload failed.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Resume upload error:", err);
-      setError("Something went wrong while uploading the resume.");
+      setError(err.message || "Something went wrong while uploading the resume.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+    <div className="min-h-screen">
+      <div className="px-4 sm:px-6 pt-2 pb-6 max-w-7xl mx-auto">
 
         {/* Header */}
         <div className="mb-6 sm:mb-8">
@@ -355,11 +383,11 @@ export default function ResumeAnalysisPage() {
           </p>
         </div>
 
+        {/* ── Two Column Grid: Only Upload Card and Score Cards ── */}
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-start">
-
-          {/* ── Left: Upload Panel ── */}
+          {/* Left: Upload Panel */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-            <div className="p-3 sm:p-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-transparent">
+            <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-transparent">
               <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
                 Upload Your Resume
@@ -370,20 +398,29 @@ export default function ResumeAnalysisPage() {
             <div className="p-3 sm:p-4 space-y-3">
               <div
                 onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
-                className={`border-2 border-dashed rounded-xl p-4 sm:p-5 text-center transition-all ${
+                className={`border-2 border-dashed rounded-xl p-2 sm:p-3 text-center transition-all ${
                   dragActive ? "border-indigo-400 bg-indigo-50" : "border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/40"
                 }`}
               >
                 <input type="file" accept=".pdf,.docx" onChange={handleFileSelect} className="hidden" id="resume-upload" />
-                <label htmlFor="resume-upload" className="cursor-pointer flex flex-col items-center gap-2">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
-                    <Upload className="w-5 h-5 sm:w-5 sm:h-5 text-indigo-600" />
+                <label
+                  htmlFor="resume-upload"
+                  className="cursor-pointer flex flex-col items-center gap-1"
+                >
+                  <div className="w-8 h-8 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center">
+                    <Upload className="w-4 h-4 text-indigo-600" />
                   </div>
+
                   <div>
                     <p className="text-sm font-semibold text-gray-700 break-all">
                       {file ? file.name : "Drag & drop or click to upload"}
                     </p>
-                    {!file && <p className="text-xs text-gray-400 mt-1">PDF or DOCX files only</p>}
+
+                    {!file && (
+                      <p className="text-xs text-gray-400">
+                        PDF or DOCX files only
+                      </p>
+                    )}
                   </div>
                 </label>
               </div>
@@ -420,13 +457,15 @@ export default function ResumeAnalysisPage() {
                 </div>
               )}
 
-              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
-                <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Pro Tips</p>
-                <ul className="space-y-1.5">
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">
+                    Pro Tips
+                  </p>
+
+                <ul className="space-y-1">
                   {[
                     "Use standard section headings (Experience, Education, Skills)",
-                    "Include measurable achievements with numbers",
-                    "Keep formatting clean — avoid tables and heavy graphics",
+                    "Include measurable achievements with numbers & avoid tables and heavy graphics",
                   ].map((tip, i) => (
                     <li key={i} className="flex items-start gap-2 text-xs text-gray-500">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0 mt-1.5" />
@@ -438,7 +477,7 @@ export default function ResumeAnalysisPage() {
             </div>
           </div>
 
-          {/* ── Right: Loader / Results / Empty ── */}
+          {/* Right: Score Cards (only when result exists and not loading) */}
           <div>
             {loading ? (
               <AnalysisLoader />
@@ -455,7 +494,7 @@ export default function ResumeAnalysisPage() {
 
                 {/* Score Cards */}
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                  <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-md border border-gray-100 flex flex-col items-center">
+                  <div className="bg-white rounded-2xl p-7 sm:p-9 shadow-md border border-gray-100 flex flex-col items-center">
                     <CircularScore 
                       score={result.score || 0} 
                       label="Resume Score" 
@@ -463,7 +502,7 @@ export default function ResumeAnalysisPage() {
                       sublabel={getScoreLabel(result.score || 0)} 
                     />
                   </div>
-                  <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-md border border-gray-100 flex flex-col items-center">
+                  <div className="bg-white rounded-2xl p-7 sm:p-9 shadow-md border border-gray-100 flex flex-col items-center">
                     <CircularScore 
                       score={result.ats_score || 0} 
                       label="ATS Score" 
@@ -472,145 +511,7 @@ export default function ResumeAnalysisPage() {
                     />
                   </div>
                 </div>
-
-                {/* AI Summary */}
-                {result.ai_summary && (
-                  <div className="rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 p-5 shadow-lg">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Sparkles className="w-5 h-5 text-white shrink-0" />
-                      <h3 className="text-base font-bold text-white">AI Summary</h3>
-                    </div>
-                    <p className="text-sm text-indigo-100 leading-relaxed">{result.ai_summary}</p>
-                  </div>
-                )}
-
-                {/* Tabs */}
-                <Tabs defaultValue="skills" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4 mb-3">
-                    <TabsTrigger value="skills"     className="flex items-center gap-1 text-sm"><Briefcase  className="w-3.5 h-3.5 shrink-0" />Skills</TabsTrigger>
-                    <TabsTrigger value="strengths"  className="flex items-center gap-1 text-sm"><ThumbsUp   className="w-3.5 h-3.5 shrink-0" /><span className="hidden sm:inline">Strengths</span></TabsTrigger>
-                    <TabsTrigger value="weaknesses" className="flex items-center gap-1 text-sm"><ThumbsDown className="w-3.5 h-3.5 shrink-0" /><span className="hidden sm:inline">Weaknesses</span></TabsTrigger>
-                    <TabsTrigger value="keywords"   className="flex items-center gap-1 text-sm"><Target     className="w-3.5 h-3.5 shrink-0" /><span className="hidden sm:inline">Keywords</span></TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="skills">
-                    <Card className="shadow-md border-gray-100">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Briefcase className="w-4 h-4 text-indigo-600" />Detected Skills
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          {result.skills?.length || 0} skills identified from your resume
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {result.skills?.length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {result.skills.map((s, idx) => (
-                              <Badge key={`${s}-${idx}`} variant="secondary" className="px-3 py-1 text-sm">{s}</Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-gray-400 text-center py-6">No skills detected.</p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="strengths">
-                    <Card className="shadow-md border-gray-100">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <ThumbsUp className="w-4 h-4 text-emerald-600" />Key Strengths
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        {result.strengths?.length > 0 ? (
-                          result.strengths.map((s, i) => (
-                            <div key={i} className="flex items-start gap-2.5 p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
-                              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                              <p className="text-sm text-gray-700">{s}</p>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-gray-400 text-center py-6">No strengths identified.</p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="weaknesses">
-                    <Card className="shadow-md border-gray-100">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <ThumbsDown className="w-4 h-4 text-orange-500" />Areas for Improvement
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        {result.weaknesses?.length > 0 ? (
-                          result.weaknesses.map((w, i) => (
-                            <div key={i} className="flex items-start gap-2.5 p-3 bg-orange-50 border border-orange-100 rounded-xl">
-                              <AlertCircle className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-                              <p className="text-sm text-gray-700">{w}</p>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-gray-400 text-center py-6">No weaknesses found. Great job!</p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="keywords">
-                    <Card className="shadow-md border-gray-100">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Target className="w-4 h-4 text-purple-600" />Recommended Keywords
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                          {result.recommendedKeywords?.length || 0} keywords to improve ATS compatibility
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {result.recommendedKeywords?.length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {result.recommendedKeywords.map((k, idx) => (
-                              <Badge key={`${k}-${idx}`} className="px-3 py-1 text-sm bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 border-0">
-                                <Zap className="w-3 h-3 mr-1" />{k}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-gray-400 text-center py-6">No keyword recommendations available.</p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                </Tabs>
-
-                {/* Suggestions */}
-                {result.suggestions?.length > 0 && (
-                  <Card className="shadow-md border-amber-100">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Lightbulb className="w-4 h-4 text-amber-500" />Actionable Suggestions
-                      </CardTitle>
-                      <CardDescription className="text-xs">Specific improvements to enhance your resume</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {result.suggestions.map((s, i) => (
-                        <div key={i} className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-                          <span className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-white text-xs font-bold flex items-center justify-center shrink-0">
-                            {i + 1}
-                          </span>
-                          <p className="text-sm text-gray-700">{s}</p>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
               </div>
-
             ) : loadingHistory ? (
               <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8 text-center">
                 <div className="animate-pulse">
@@ -645,8 +546,149 @@ export default function ResumeAnalysisPage() {
               </div>
             )}
           </div>
+        </div> {/* End of grid */}
 
-        </div>
+        {/* ── Full Width Sections: AI Summary, Tabs, Suggestions (only when result exists) ── */}
+        {result && (
+          <div className="mt-8 space-y-6">
+            {/* AI Summary */}
+            {result.ai_summary && (
+              <div className="rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 p-5 shadow-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="w-5 h-5 text-white shrink-0" />
+                  <h3 className="text-base font-bold text-white">AI Summary</h3>
+                </div>
+                <p className="text-sm text-indigo-100 leading-relaxed">{result.ai_summary}</p>
+              </div>
+            )}
+
+            {/* Tabs */}
+            <Tabs defaultValue="skills" className="w-full">
+              <TabsList className="grid w-full grid-cols-4 mb-3">
+                <TabsTrigger value="skills"     className="flex items-center gap-1 text-sm"><Briefcase  className="w-3.5 h-3.5 shrink-0" />Skills</TabsTrigger>
+                <TabsTrigger value="strengths"  className="flex items-center gap-1 text-sm"><ThumbsUp   className="w-3.5 h-3.5 shrink-0" /><span className="hidden sm:inline">Strengths</span></TabsTrigger>
+                <TabsTrigger value="weaknesses" className="flex items-center gap-1 text-sm"><ThumbsDown className="w-3.5 h-3.5 shrink-0" /><span className="hidden sm:inline">Weaknesses</span></TabsTrigger>
+                <TabsTrigger value="keywords"   className="flex items-center gap-1 text-sm"><Target     className="w-3.5 h-3.5 shrink-0" /><span className="hidden sm:inline">Keywords</span></TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="skills">
+                <Card className="shadow-md border-gray-100">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Briefcase className="w-4 h-4 text-indigo-600" />Detected Skills
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      {result.skills?.length || 0} skills identified from your resume
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {result.skills?.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {result.skills.map((s, idx) => (
+                          <Badge key={`${s}-${idx}`} variant="secondary" className="px-3 py-1 text-sm">{s}</Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400 text-center py-6">No skills detected.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="strengths">
+                <Card className="shadow-md border-gray-100">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <ThumbsUp className="w-4 h-4 text-emerald-600" />Key Strengths
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {result.strengths?.length > 0 ? (
+                      result.strengths.map((s, i) => (
+                        <div key={i} className="flex items-start gap-2.5 p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+                          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <p className="text-sm text-gray-700">{s}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-400 text-center py-6">No strengths identified.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="weaknesses">
+                <Card className="shadow-md border-gray-100">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <ThumbsDown className="w-4 h-4 text-orange-500" />Areas for Improvement
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {result.weaknesses?.length > 0 ? (
+                      result.weaknesses.map((w, i) => (
+                        <div key={i} className="flex items-start gap-2.5 p-3 bg-orange-50 border border-orange-100 rounded-xl">
+                          <AlertCircle className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                          <p className="text-sm text-gray-700">{w}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-400 text-center py-6">No weaknesses found. Great job!</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="keywords">
+                <Card className="shadow-md border-gray-100">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Target className="w-4 h-4 text-purple-600" />Recommended Keywords
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      {result.recommendedKeywords?.length || 0} keywords to improve ATS compatibility
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {result.recommendedKeywords?.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {result.recommendedKeywords.map((k, idx) => (
+                          <Badge key={`${k}-${idx}`} className="px-3 py-1 text-sm bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 border-0">
+                            <Zap className="w-3 h-3 mr-1" />{k}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400 text-center py-6">No keyword recommendations available.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+
+            {/* Suggestions */}
+            {result.suggestions?.length > 0 && (
+              <Card className="shadow-md border-amber-100">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 text-amber-500" />Actionable Suggestions
+                  </CardTitle>
+                  <CardDescription className="text-xs">Specific improvements to enhance your resume</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {result.suggestions.map((s, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                      <span className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                        {i + 1}
+                      </span>
+                      <p className="text-sm text-gray-700">{s}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
