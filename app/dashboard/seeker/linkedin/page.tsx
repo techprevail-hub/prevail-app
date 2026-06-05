@@ -5,30 +5,28 @@ import {
   User, CheckCircle, AlertCircle, TrendingUp, Lightbulb,
   ThumbsUp, ThumbsDown, Sparkles, Target, Zap, ArrowRight,
   RefreshCw, Clock, Star, Brain, Search, Cpu, Award,
-  ChevronRight, BarChart3, Hash, FileText, Tag,
+  ChevronRight, BarChart3, Hash, FileText, Tag, AlertTriangle,
+  Hourglass, Timer,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { api } from "@/utils/apiServices";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-// ── Score helpers (same as resume page) ──────────────────────
+// ── Score helpers ────────────────────────────────────────────
 const getScoreColor = (s: number) => s >= 80 ? "text-emerald-600" : s >= 60 ? "text-violet-600" : "text-amber-500";
 const getScoreRing  = (s: number) => s >= 80 ? "stroke-emerald-500" : s >= 60 ? "stroke-violet-500" : "stroke-amber-400";
 const getScoreLabel = (s: number) => s >= 80 ? "Excellent" : s >= 60 ? "Good" : s >= 40 ? "Average" : "Needs Work";
 const getScoreBg    = (s: number) => s >= 80 ? "bg-emerald-100 text-emerald-700" : s >= 60 ? "bg-violet-100 text-violet-700" : "bg-amber-100 text-amber-700";
 const safeArr       = (v: any): string[] => Array.isArray(v) ? v : typeof v === "string" && v.trim() ? [v] : [];
 
-const getToken = () => typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
-// ── Loader (same component as resume page) ───────────────────
+// ── Loader ───────────────────────────────────────────────────
 const LOADER_STEPS = [
   { icon: Search, label: "Reading profile…",         detail: "Parsing your LinkedIn data" },
-  { icon: Brain,      label: "Running AI analysis…",     detail: "Evaluating content & tone" },
-  { icon: Target,     label: "Scoring keywords…",        detail: "Checking recruiter visibility" },
-  { icon: Cpu,        label: "Calculating scores…",      detail: "Profile completeness & headline" },
-  { icon: Award, label: "Finalizing results…",      detail: "Almost ready!" },
+  { icon: Brain,  label: "Running AI analysis…",     detail: "Evaluating content & tone" },
+  { icon: Target, label: "Scoring keywords…",        detail: "Checking recruiter visibility" },
+  { icon: Cpu,    label: "Calculating scores…",      detail: "Profile completeness & headline" },
+  { icon: Award,  label: "Finalizing results…",      detail: "Almost ready!" },
 ];
 
 function AnalysisLoader() {
@@ -113,7 +111,7 @@ function AnalysisLoader() {
   );
 }
 
-// ── Circular score ring (same as resume page) ────────────────
+// ── Circular score ring ──────────────────────────────────────
 function CircularScore({ score, label, icon: Icon, sublabel }: {
   score: number; label: string; icon: React.ElementType; sublabel: string;
 }) {
@@ -157,6 +155,8 @@ interface LinkedInResult {
   recommendedKeywords: string[];
   personalBrandingTips: string[];
   summary: string;
+  isFallback?: boolean;
+  message?: string;
   aiGeneratedAt?: string;
   createdAt?: string;
 }
@@ -207,49 +207,157 @@ export default function LinkedInAnalysisPage() {
   const [result, setResult]           = useState<LinkedInResult | null>(null);
   const [history, setHistory]         = useState<HistoryItem[]>([]);
   const [error, setError]             = useState("");
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Load cooldown state from localStorage on mount
+  useEffect(() => {
+    const savedCooldown = localStorage.getItem('linkedin_cooldown_until');
+    
+    if (savedCooldown && parseInt(savedCooldown) > Date.now()) {
+      setCooldownUntil(parseInt(savedCooldown));
+      // Also set an error message to show the banner
+      setError("Rate limit exceeded. Please wait for the cooldown to expire.");
+    } else if (savedCooldown) {
+      // Clear expired cooldown
+      localStorage.removeItem('linkedin_cooldown_until');
+    }
+  }, []);
+
+  // Update current time every second for live timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Check and clear cooldown when expired
+  useEffect(() => {
+    if (cooldownUntil && cooldownUntil <= Date.now()) {
+      setCooldownUntil(null);
+      localStorage.removeItem('linkedin_cooldown_until');
+      setError("");
+    }
+  }, [currentTime, cooldownUntil]);
 
   const fetchHistory = async () => {
     try {
       setHistoryLoading(true);
-      const token = getToken();
-      if (!token) { setHistory([]); return; }
-      const res  = await fetch(`${API_URL}/api/linkedin/history`, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      });
-      const data = await res.json();
-      if (data.success) {
-        const list: HistoryItem[] = data.data || [];
+      const response = await api.get("/api/linkedin/history");
+      
+      if (response.success) {
+        const list: HistoryItem[] = response.data || [];
         setHistory(list);
         if (list.length > 0) setResult(mapHistory(list[0]));
       }
-    } catch { /* silent */ }
-    finally { setHistoryLoading(false); }
+    } catch (err) {
+      console.error("Error fetching history:", err);
+    } finally {
+      setHistoryLoading(false);
+    }
   };
 
   useEffect(() => { fetchHistory(); }, []);
 
+  // Check if user is in cooldown period
+  const isInCooldown = () => {
+    if (!cooldownUntil) return false;
+    return Date.now() < cooldownUntil;
+  };
+
+  // Get remaining cooldown time in minutes and seconds
+  const getRemainingCooldownTime = () => {
+    if (!cooldownUntil) return { minutes: 0, seconds: 0, totalSeconds: 0 };
+    const remainingSeconds = Math.max(0, Math.floor((cooldownUntil - Date.now()) / 1000));
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    return { minutes, seconds, totalSeconds: remainingSeconds };
+  };
+
+  // Check if error is 503/429 service unavailable or quota exceeded
+  const isServiceUnavailableError = (errorMsg: string) => {
+    return errorMsg.includes("503") || 
+           errorMsg.includes("429") ||
+           errorMsg.includes("quota") ||
+           errorMsg.includes("rate limit") ||
+           errorMsg.includes("Service Unavailable") ||
+           errorMsg.includes("high demand") ||
+           errorMsg.includes("busy") ||
+           errorMsg.includes("unavailable") ||
+           errorMsg.includes("try again later") ||
+           errorMsg.includes("Too Many Requests");
+  };
+
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check cooldown
+    if (isInCooldown()) {
+      const { minutes, seconds } = getRemainingCooldownTime();
+      setError(`You've hit the rate limit. Please try again after ${minutes} minute${minutes !== 1 ? 's' : ''} and ${seconds} second${seconds !== 1 ? 's' : ''}.`);
+      return;
+    }
+    
     setError("");
+    
     if (!profileUrl.trim() && !profileText.trim())
       return setError("Please provide a LinkedIn profile URL or paste your profile text.");
 
-    const token = getToken();
-    if (!token) return setError("Please login first.");
-
     setLoading(true);
     setResult(null);
+    
     try {
-      const res  = await fetch(`${API_URL}/api/linkedin/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ profileUrl, profileText }),
+      const response = await api.post("/api/linkedin/analyze", { 
+        profileUrl, 
+        profileText 
       });
-      const data = await res.json();
-      if (data.success) { setResult(data.data); await fetchHistory(); }
-      else setError(data.message || "Analysis failed.");
-    } catch { setError("Something went wrong. Please try again."); }
-    finally { setLoading(false); }
+      
+      if (response.success) { 
+        setResult(response.data);
+        
+        // Reset cooldown on success
+        setCooldownUntil(null);
+        localStorage.removeItem('linkedin_cooldown_until');
+        setError("");
+        
+        await fetchHistory();
+      } else {
+        // Check for service unavailable or quota exceeded error
+        const errorMsg = response.message || response.error || "";
+        
+        if (isServiceUnavailableError(errorMsg)) {
+          // Set 1-hour cooldown
+          const cooldownTime = Date.now() + (60 * 60 * 1000); // 1 hour
+          setCooldownUntil(cooldownTime);
+          localStorage.setItem('linkedin_cooldown_until', cooldownTime.toString());
+          // Set error message that will show the banner
+          setError(`The AI service quota has been exceeded or is currently unavailable. You've hit the rate limit. Please wait for the cooldown timer.`);
+        } else {
+          setError(errorMsg || "Analysis failed. Please try again.");
+        }
+      }
+    } catch (err: any) {
+      console.error("Analysis error:", err);
+      
+      // Check for service unavailable or quota exceeded error
+      const errorMsg = err.message || err.toString() || "";
+      const errorResponse = err.response?.data || {};
+      const fullErrorMsg = `${errorMsg} ${JSON.stringify(errorResponse)}`;
+      
+      if (isServiceUnavailableError(fullErrorMsg)) {
+        // Set 1-hour cooldown
+        const cooldownTime = Date.now() + (60 * 60 * 1000); // 1 hour
+        setCooldownUntil(cooldownTime);
+        localStorage.setItem('linkedin_cooldown_until', cooldownTime.toString());
+        // Set error message that will show the banner
+        setError(`The AI service quota has been exceeded or is currently unavailable. You've hit the rate limit. Please wait for the cooldown timer.`);
+      } else {
+        setError(errorMsg || "Something went wrong. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadHistoryItem = (item: HistoryItem) => {
@@ -257,21 +365,25 @@ export default function LinkedInAnalysisPage() {
     setProfileUrl(item.profile_url || "");
     setProfileText(item.profile_text || "");
     setError("");
+    setCooldownUntil(null);
+    localStorage.removeItem('linkedin_cooldown_until');
   };
 
   const SCORE_CARDS = result ? [
     { label: "Overall Score",        score: result.score,                    icon: BarChart3,  sub: getScoreLabel(result.score) },
-    { label: "Profile Completeness", score: result.profileCompletenessScore, icon: Hash,     sub: getScoreLabel(result.profileCompletenessScore) },
+    { label: "Profile Completeness", score: result.profileCompletenessScore, icon: Hash,       sub: getScoreLabel(result.profileCompletenessScore) },
     { label: "Keyword Optimization", score: result.keywordOptimizationScore, icon: Tag,        sub: getScoreLabel(result.keywordOptimizationScore) },
     { label: "Headline Score",       score: result.headlineScore,            icon: Star,       sub: getScoreLabel(result.headlineScore) },
-    { label: "About Score",          score: result.aboutScore,               icon: FileText, sub: getScoreLabel(result.aboutScore) },
+    { label: "About Score",          score: result.aboutScore,               icon: FileText,   sub: getScoreLabel(result.aboutScore) },
   ] : [];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+  const { minutes, seconds } = getRemainingCooldownTime();
 
-        {/* ── Header ── */}
+  return (
+    <div className="min-h-screen">
+      <div className="px-4 sm:px-6 pt-2 pb-6 max-w-7xl mx-auto">
+
+        {/* Header */}
         <div className="mb-6 sm:mb-8">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md shrink-0">
@@ -284,9 +396,49 @@ export default function LinkedInAnalysisPage() {
           </p>
         </div>
 
+        {/* Cooldown Warning Banner - Show when rate limit is hit */}
+        {isInCooldown() && (
+          <div className="mb-6 rounded-2xl bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 p-5 shadow-sm animate-in fade-in slide-in-from-top duration-300">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Hourglass className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-red-800 mb-1 flex items-center gap-2">
+                  <Timer className="w-4 h-4" />
+                  Rate Limit Exceeded
+                </h3>
+                <p className="text-sm text-red-700 mb-2">
+                  The AI service quota has been exceeded or is currently unavailable. You've hit the rate limit.
+                </p>
+                <div className="flex items-center gap-3 mt-3">
+                  <div className="bg-white rounded-xl px-4 py-2 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-1">Time until retry</p>
+                    <p className="text-2xl font-bold text-red-600 font-mono">
+                      {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
+                    </p>
+                  </div>
+                  <div className="flex-1">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-red-500 h-2 rounded-full transition-all duration-1000"
+                        style={{ width: `${((60*60 - (minutes*60 + seconds)) / (60*60)) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Please wait {minutes} minute{minutes !== 1 ? 's' : ''} before trying again
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Two Column Grid */}
         <div className="grid lg:grid-cols-3 gap-6 lg:gap-8 items-start">
 
-          {/* ── Left: Input Panel (takes 1 col) ── */}
+          {/* Left: Input Panel and History */}
           <div className="lg:col-span-1 flex flex-col gap-5">
 
             {/* Input Form */}
@@ -310,7 +462,8 @@ export default function LinkedInAnalysisPage() {
                     value={profileUrl}
                     onChange={e => setProfileUrl(e.target.value)}
                     placeholder="https://www.linkedin.com/in/your-profile"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all"
+                    disabled={isInCooldown()}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all disabled:bg-gray-50 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -330,33 +483,36 @@ export default function LinkedInAnalysisPage() {
                     value={profileText}
                     onChange={e => setProfileText(e.target.value)}
                     rows={12}
+                    disabled={isInCooldown()}
                     placeholder="Paste your headline, about section, experience, skills…"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all resize-none leading-relaxed"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all resize-none leading-relaxed disabled:bg-gray-50 disabled:cursor-not-allowed"
                   />
                 </div>
 
                 {/* Analyze button */}
                 <button
                   onClick={handleAnalyze}
-                  disabled={loading}
+                  disabled={loading || isInCooldown()}
                   className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-md hover:from-indigo-700 hover:to-purple-700 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0"
                 >
                   {loading
                     ? <><RefreshCw className="w-4 h-4 animate-spin" />Analyzing…</>
-                    : <>Analyze Profile<ArrowRight className="w-4 h-4" /></>}
+                    : isInCooldown() 
+                      ? <><Hourglass className="w-4 h-4" />Please wait {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}</>
+                      : <>Analyze Profile<ArrowRight className="w-4 h-4" /></>}
                 </button>
 
-                {/* Error */}
-                {error && (
-                  <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-xl">
-                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                    <p className="text-xs text-red-600">{error}</p>
+                {/* Regular Error (not cooldown related) */}
+                {error && !isInCooldown() && (
+                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200">
+                    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-gray-700">{error}</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* ── History Sidebar ── */}
+            {/* History Sidebar */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
               <div className="p-4 sm:p-5 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-transparent">
                 <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -403,14 +559,14 @@ export default function LinkedInAnalysisPage() {
             </div>
           </div>
 
-          {/* ── Right: Loader / Results / Empty (takes 2 cols) ── */}
+          {/* Right: Results Area */}
           <div className="lg:col-span-2">
             {loading ? (
               <AnalysisLoader />
             ) : result ? (
               <div className="space-y-5">
 
-                {/* Score Cards — 5 in a row, 2-3 on mobile */}
+                {/* Score Cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
                   {SCORE_CARDS.map(({ label, score, icon, sub }) => (
                     <div key={label} className="bg-white rounded-2xl p-3 sm:p-4 shadow-md border border-gray-100 flex flex-col items-center">
@@ -421,12 +577,18 @@ export default function LinkedInAnalysisPage() {
 
                 {/* AI Summary */}
                 {result.summary && (
-                  <div className="rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 p-5 shadow-lg">
+                  <div className={`rounded-2xl p-5 shadow-lg ${
+                    result.isFallback 
+                      ? "bg-gradient-to-br from-amber-500 to-orange-500" 
+                      : "bg-gradient-to-br from-indigo-600 to-purple-600"
+                  }`}>
                     <div className="flex items-center gap-2 mb-2">
                       <Sparkles className="w-5 h-5 text-white shrink-0" />
-                      <h3 className="text-sm font-bold text-white">AI Summary</h3>
+                      <h3 className="text-sm font-bold text-white">
+                        {result.isFallback ? "Analysis Summary" : "AI Summary"}
+                      </h3>
                     </div>
-                    <p className="text-sm text-indigo-100 leading-relaxed">{result.summary}</p>
+                    <p className="text-sm text-white/90 leading-relaxed">{result.summary}</p>
                   </div>
                 )}
 
@@ -522,28 +684,6 @@ export default function LinkedInAnalysisPage() {
                     </Card>
                   </TabsContent>
                 </Tabs>
-
-                {/* Suggestions */}
-                {safeArr(result.suggestions).length > 0 && (
-                  <Card className="shadow-md border-amber-100">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Lightbulb className="w-4 h-4 text-amber-500" />Actionable Suggestions
-                      </CardTitle>
-                      <CardDescription className="text-xs">Specific steps to improve your profile</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {safeArr(result.suggestions).map((s, i) => (
-                        <div key={i} className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-                          <span className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-white text-xs font-bold flex items-center justify-center shrink-0">
-                            {i + 1}
-                          </span>
-                          <p className="text-sm text-gray-700">{s}</p>
-                        </div>
-                      ))}
-                    </CardContent>
-                  </Card>
-                )}
               </div>
 
             ) : (
@@ -572,8 +712,32 @@ export default function LinkedInAnalysisPage() {
               </div>
             )}
           </div>
-
         </div>
+
+        {/* Full Width: Actionable Suggestions */}
+        {result && safeArr(result.suggestions).length > 0 && (
+          <div className="mt-8">
+            <Card className="shadow-md border-amber-100">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Lightbulb className="w-4 h-4 text-amber-500" />Actionable Suggestions
+                </CardTitle>
+                <CardDescription className="text-xs">Specific steps to improve your profile</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {safeArr(result.suggestions).map((s, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                    <span className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                      {i + 1}
+                    </span>
+                    <p className="text-sm text-gray-700">{s}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import {
   Briefcase, Lightbulb, ArrowRight, RefreshCw,
   Shield, X, ThumbsUp, ThumbsDown, Sparkles, Target,
   Zap, BarChart3, ChevronRight, Brain, ScanSearch, Cpu, BadgeCheck,
-  History,
+  History, Hourglass, Timer, AlertTriangle,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -221,6 +221,37 @@ export default function ResumeAnalysisPage() {
   const [dragActive, setDragActive] = useState(false);
   const [history, setHistory]       = useState<ResumeResult[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [currentTime, setCurrentTime] = useState(Date.now()); // Add this for timer updates
+
+  // Load cooldown state from localStorage on mount
+  useEffect(() => {
+    const savedCooldown = localStorage.getItem('resume_cooldown_until');
+    
+    if (savedCooldown && parseInt(savedCooldown) > Date.now()) {
+      setCooldownUntil(parseInt(savedCooldown));
+    } else if (savedCooldown) {
+      // Clear expired cooldown
+      localStorage.removeItem('resume_cooldown_until');
+    }
+  }, []);
+
+  // Update current time every second for live timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Check and clear cooldown when expired
+  useEffect(() => {
+    if (cooldownUntil && cooldownUntil <= Date.now()) {
+      setCooldownUntil(null);
+      localStorage.removeItem('resume_cooldown_until');
+      setError("");
+    }
+  }, [currentTime, cooldownUntil]);
 
   // Fetch resume history on page load
   useEffect(() => {
@@ -306,9 +337,47 @@ export default function ResumeAnalysisPage() {
     isValidFile(f) ? (setFile(f), setError("")) : (setError("Please upload a PDF or DOCX file only."), setFile(null));
   };
 
+  // Check if user is in cooldown period
+  const isInCooldown = () => {
+    if (!cooldownUntil) return false;
+    return Date.now() < cooldownUntil;
+  };
+
+  // Get remaining cooldown time in minutes and seconds
+  const getRemainingCooldownTime = () => {
+    if (!cooldownUntil) return { minutes: 0, seconds: 0, totalSeconds: 0 };
+    const remainingSeconds = Math.max(0, Math.floor((cooldownUntil - Date.now()) / 1000));
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    return { minutes, seconds, totalSeconds: remainingSeconds };
+  };
+
+  // Check if error is 503 service unavailable - checks both message and error fields
+  const isServiceUnavailableError = (response: any) => {
+    const message = response?.message || "";
+    const error = response?.error || "";
+    const combinedMessage = `${message} ${error}`.toLowerCase();
+    
+    return combinedMessage.includes("503") || 
+           combinedMessage.includes("service unavailable") ||
+           combinedMessage.includes("high demand") ||
+           combinedMessage.includes("busy") ||
+           combinedMessage.includes("unavailable") ||
+           combinedMessage.includes("try again later") ||
+           combinedMessage.includes("generativeai error");
+  };
+
   const handleUpload = async () => {
     setError(""); 
     setResult(null);
+    
+    // Check cooldown
+    if (isInCooldown()) {
+      const { minutes, seconds } = getRemainingCooldownTime();
+      setError(`You've hit the rate limit. Please try again after ${minutes} minute${minutes !== 1 ? 's' : ''} and ${seconds} second${seconds !== 1 ? 's' : ''}.`);
+      return;
+    }
+    
     if (!file) return setError("Please select a resume file.");
     setLoading(true);
     
@@ -316,10 +385,9 @@ export default function ResumeAnalysisPage() {
       const formData = new FormData();
       formData.append("resume", file);
       
-      // Log FormData contents for debugging
       console.log("Uploading file:", file.name, file.type, file.size);
       
-      // Use api.post for the upload - matching the pattern from progress page
+      // Use api.post for the upload
       const response = await api.post("/api/resume/upload", formData);
       
       console.log("Upload response:", response);
@@ -343,18 +411,46 @@ export default function ResumeAnalysisPage() {
         };
         setResult(mappedResult);
         console.log("Upload response keywords:", mappedResult.recommendedKeywords);
+        
+        // Reset cooldown on success
+        setCooldownUntil(null);
+        localStorage.removeItem('resume_cooldown_until');
+        
         // Refresh history after successful upload
         await fetchResumeHistory();
       } else {
-        setError(response?.message || "Resume upload failed.");
+        // Check for 503 service unavailable error in response
+        if (isServiceUnavailableError(response)) {
+          // Set 1-hour cooldown
+          const cooldownTime = Date.now() + (60 * 60 * 1000); // 1 hour
+          setCooldownUntil(cooldownTime);
+          localStorage.setItem('resume_cooldown_until', cooldownTime.toString());
+          setError(`The AI service is currently experiencing high demand. You've hit the rate limit. Please try again after 1 hour.`);
+        } else {
+          setError(response?.message || "Resume upload failed.");
+        }
       }
     } catch (err: any) {
       console.error("Resume upload error:", err);
-      setError(err.message || "Something went wrong while uploading the resume.");
+      
+      // Check if the error response contains 503 information
+      const errorResponse = err.response?.data || err;
+      
+      if (isServiceUnavailableError(errorResponse)) {
+        // Set 1-hour cooldown
+        const cooldownTime = Date.now() + (60 * 60 * 1000); // 1 hour
+        setCooldownUntil(cooldownTime);
+        localStorage.setItem('resume_cooldown_until', cooldownTime.toString());
+        setError(`The AI service is currently experiencing high demand. You've hit the rate limit. Please try again after 1 hour.`);
+      } else {
+        setError(err.message || "Something went wrong while uploading the resume.");
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  const { minutes, seconds } = getRemainingCooldownTime();
 
   return (
     <div className="min-h-screen">
@@ -382,6 +478,45 @@ export default function ResumeAnalysisPage() {
             Upload your resume and get AI-powered insights to land your dream job
           </p>
         </div>
+
+        {/* Cooldown Warning Banner */}
+        {isInCooldown() && (
+          <div className="mb-6 rounded-2xl bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 p-5 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Hourglass className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-red-800 mb-1 flex items-center gap-2">
+                  <Timer className="w-4 h-4" />
+                  Rate Limit Exceeded
+                </h3>
+                <p className="text-sm text-red-700 mb-2">
+                  The AI service is currently experiencing high demand. You've hit the rate limit.
+                </p>
+                <div className="flex items-center gap-3 mt-3">
+                  <div className="bg-white rounded-xl px-4 py-2 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-1">Time until retry</p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
+                    </p>
+                  </div>
+                  <div className="flex-1">
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-red-500 h-2 rounded-full transition-all duration-1000"
+                        style={{ width: `${((60*60 - (minutes*60 + seconds)) / (60*60)) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Please wait {minutes} minute{minutes !== 1 ? 's' : ''} before trying again
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Two Column Grid: Only Upload Card and Score Cards ── */}
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-start">
@@ -442,17 +577,27 @@ export default function ResumeAnalysisPage() {
 
               <button
                 onClick={handleUpload}
-                disabled={!file || loading}
+                disabled={!file || loading || isInCooldown()}
                 className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-md hover:from-indigo-700 hover:to-purple-700 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0"
               >
                 {loading
                   ? <><RefreshCw className="w-4 h-4 animate-spin" />Analyzing…</>
-                  : <>Analyze Resume<ArrowRight className="w-4 h-4" /></>}
+                  : isInCooldown()
+                    ? <><Hourglass className="w-4 h-4" />Please wait {minutes}:{seconds.toString().padStart(2, '0')}</>
+                    : <>Analyze Resume<ArrowRight className="w-4 h-4" /></>}
               </button>
 
-              {error && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
-                  <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+              {error && !isInCooldown() && (
+                <div className={`flex items-start gap-2 px-3 py-2 rounded-xl ${
+                  error.includes("rate limit") || error.includes("high demand")
+                    ? "bg-red-50 border border-red-200"
+                    : "bg-red-50 border border-red-200"
+                }`}>
+                  {error.includes("high demand") || error.includes("rate limit") ? (
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                  )}
                   <p className="text-xs text-red-600">{error}</p>
                 </div>
               )}
