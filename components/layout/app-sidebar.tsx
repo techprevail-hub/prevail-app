@@ -4,7 +4,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -15,15 +14,15 @@ import {
 } from "@/components/ui/tooltip";
 import { supabase } from "@/lib/supabaseClient";
 import { useEffect, useState } from "react";
-import { 
-  Home, 
-  FileText, 
-  User, 
-  Camera, 
-  Mic, 
-  Users, 
-  Calendar, 
-  TrendingUp, 
+import {
+  Home,
+  FileText,
+  User,
+  Camera,
+  Mic,
+  Users,
+  Calendar,
+  TrendingUp,
   Settings,
   Briefcase,
   Star,
@@ -33,173 +32,129 @@ import {
   HelpCircle,
   DollarSign,
   Award,
-  LayoutGrid,
   BookOpen,
-  MessageSquare
 } from "lucide-react";
 
-// Define the type for navigation items
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type NavItem = {
   label: string;
-  href: string;
-  icon: any;
+  href:  string;
+  icon:  any;
   badge?: string;
 };
 
-// Navigation configuration based on roles
-const navigationConfig = {
-  student: {
-    mainMenu: [
-      { label: "Home", href: "/dashboard/seeker", icon: Home },
-      { label: "Resume", href: "/dashboard/seeker/resume", icon: FileText },
-      { label: "LinkedIn", href: "/dashboard/seeker/linkedin", icon: User },
-      { label: "Headshot", href: "/dashboard/seeker/headshot", icon: Camera },
-      { label: "Interview", href: "/dashboard/seeker/interview", icon: Mic },
-      { label: "Coach", href: "/dashboard/seeker/coach", icon: Users },
-      { label: "Sessions", href: "/dashboard/seeker/sessions", icon: Calendar },
-      { label: "Progress", href: "/dashboard/seeker/progress", icon: TrendingUp },
-      { label: "Settings", href: "/dashboard/seeker/settings", icon: Settings },
-    ] as NavItem[],
-  },
-  "job-seeker": {
-    mainMenu: [
-      { label: "Home", href: "/dashboard/seeker", icon: Home },
-      { label: "Resume", href: "/dashboard/seeker/resume", icon: FileText },
-      { label: "LinkedIn", href: "/dashboard/seeker/linkedin", icon: User },
-      { label: "Headshot", href: "/dashboard/seeker/headshot", icon: Camera },
-      { label: "Interview", href: "/dashboard/seeker/interview", icon: Mic },
-      { label: "Coach", href: "/dashboard/seeker/coach", icon: Users },
-      { label: "Sessions", href: "/dashboard/seeker/sessions", icon: Calendar },
-      { label: "Progress", href: "/dashboard/seeker/progress", icon: TrendingUp },
-      { label: "Settings", href: "/dashboard/seeker/settings", icon: Settings },
-    ] as NavItem[],
-  },
-  coach: {
-    mainMenu: [
-      { label: "Home", href: "/dashboard/coach", icon: Home },
-      { label: "Services", href: "/dashboard/coach/services", icon: Briefcase },
-      { label: "Calendar", href: "/dashboard/coach/calendar", icon: Calendar },
-      { label: "Sessions", href: "/dashboard/coach/sessions", icon: BookOpen },
-      { label: "Clients", href: "/dashboard/coach/clients", icon: Users },
-      { label: "Earnings", href: "/dashboard/coach/earnings", icon: DollarSign },
-      { label: "Analytics", href: "/dashboard/coach/analytics", icon: BarChart3 },
-      { label: "Reviews", href: "/dashboard/coach/reviews", icon: Star },
-      { label: "Settings", href: "/dashboard/coach/settings", icon: Settings },
-    ] as NavItem[],
-  },
-  institute: {
-    mainMenu: [
-      { label: "Home", href: "/dashboard/institute", icon: Home },
-      { label: "Students", href: "/dashboard/institute/students", icon: Users },
-      { label: "Coaches", href: "/dashboard/institute/coaches", icon: Award },
-      { label: "Progress", href: "/dashboard/institute/progress", icon: TrendingUp },
-      { label: "Placement", href: "/dashboard/institute/placement", icon: Briefcase },
-      { label: "NPS", href: "/dashboard/institute/nps", icon: Star },
-      { label: "Reports", href: "/dashboard/institute/reports", icon: BarChart3 },
-      { label: "Invite Students", href: "/dashboard/institute/invite-students", icon: UserPlus, badge: "New" },
-      { label: "Invite Coaches", href: "/dashboard/institute/invite-coaches", icon: PlusCircle, badge: "New" },
-      { label: "Settings", href: "/dashboard/institute/settings", icon: Settings },
-    ] as NavItem[],
-  },
+// ─── Navigation config ────────────────────────────────────────────────────────
+
+const NAV_CONFIG: Record<string, NavItem[]> = {
+  student: [
+    { label: "Home",      href: "/dashboard/seeker",           icon: Home },
+    { label: "Resume",    href: "/dashboard/seeker/resume",    icon: FileText },
+    { label: "LinkedIn",  href: "/dashboard/seeker/linkedin",  icon: User },
+    { label: "Headshot",  href: "/dashboard/seeker/headshot",  icon: Camera },
+    { label: "Interview", href: "/dashboard/seeker/interview", icon: Mic },
+    { label: "Coach",     href: "/dashboard/seeker/coach",     icon: Users },
+    { label: "Sessions",  href: "/dashboard/seeker/sessions",  icon: Calendar },
+    { label: "Progress",  href: "/dashboard/seeker/progress",  icon: TrendingUp },
+    { label: "Settings",  href: "/dashboard/seeker/settings",  icon: Settings },
+  ],
+  coach: [
+    { label: "Home",      href: "/dashboard/coach",            icon: Home },
+    { label: "Services",  href: "/dashboard/coach/services",   icon: Briefcase },
+    { label: "Calendar",  href: "/dashboard/coach/calendar",   icon: Calendar },
+    { label: "Sessions",  href: "/dashboard/coach/sessions",   icon: BookOpen },
+    { label: "Clients",   href: "/dashboard/coach/clients",    icon: Users },
+    { label: "Earnings",  href: "/dashboard/coach/earnings",   icon: DollarSign },
+    { label: "Analytics", href: "/dashboard/coach/analytics",  icon: BarChart3 },
+    { label: "Reviews",   href: "/dashboard/coach/reviews",    icon: Star },
+    { label: "Settings",  href: "/dashboard/coach/settings",   icon: Settings },
+  ],
+  institute: [
+    { label: "Home",           href: "/dashboard/institute",                icon: Home },
+    { label: "Students",       href: "/dashboard/institute/students",       icon: Users },
+    { label: "Coaches",        href: "/dashboard/institute/coaches",        icon: Award },
+    { label: "Progress",       href: "/dashboard/institute/progress",       icon: TrendingUp },
+    { label: "Placement",      href: "/dashboard/institute/placement",      icon: Briefcase },
+    { label: "NPS",            href: "/dashboard/institute/nps",            icon: Star },
+    { label: "Reports",        href: "/dashboard/institute/reports",        icon: BarChart3 },
+    { label: "Invite Students",href: "/dashboard/institute/invite-students",icon: UserPlus,   badge: "New" },
+    { label: "Invite Coaches", href: "/dashboard/institute/invite-coaches", icon: PlusCircle, badge: "New" },
+    { label: "Settings",       href: "/dashboard/institute/settings",       icon: Settings },
+  ],
 };
 
-const getNavItems = (role: string): NavItem[] => {
-  if (role === "student" || role === "job-seeker") {
-    return navigationConfig.student.mainMenu;
-  }
-  if (role === "coach") {
-    return navigationConfig.coach.mainMenu;
-  }
-  if (role === "institute") {
-    return navigationConfig.institute.mainMenu;
-  }
-  return navigationConfig.student.mainMenu;
-};
+function getNavItems(role: string): NavItem[] {
+  if (role === "job_seeker" || role === "job-seeker") return NAV_CONFIG.student;
+  return NAV_CONFIG[role] ?? NAV_CONFIG.student;
+}
+
+// Read role from localStorage synchronously so there's zero loading flash
+function getInitialRole(): string {
+  if (typeof window === "undefined") return "student";
+  return localStorage.getItem("userRole") ?? "student";
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AppSidebar() {
   const pathname = usePathname();
-  const [userRole, setUserRole] = useState<string>("student");
-  const [loading, setLoading] = useState(true);
+
+  // Initialise from localStorage immediately — no flash, no spinner
+  const [userRole, setUserRole] = useState<string>(getInitialRole);
 
   useEffect(() => {
-    const getUserRole = async () => {
+    async function syncRole() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          try {
-            const { data: userData, error } = await supabase
-              .from('users')
-              .select('role')
-              .eq('id', session.user.id)
-              .maybeSingle();
-            
-            if (error) {
-              console.error("Role fetch error:", error);
-              setUserRole("student");
-            } else {
-              setUserRole(userData?.role || "student");
-            }
-          } catch (err) {
-            console.error("Unexpected error fetching role:", err);
-            setUserRole("student");
-          }
-        } else {
-          setUserRole("student");
+        if (!session?.user) return;
+
+        const { data } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", session.user.id)
+          .maybeSingle();
+
+        if (data?.role) {
+          setUserRole(data.role);
+          localStorage.setItem("userRole", data.role);
         }
-      } catch (error) {
-        console.error("Error fetching user session:", error);
-        setUserRole("student");
-      } finally {
-        setLoading(false);
+      } catch (err) {
+        console.error("AppSidebar: role sync error", err);
       }
-    };
+    }
 
-    getUserRole();
+    syncRole();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
+    // Keep role in sync on auth changes (e.g. after login)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (!session?.user) return;
         try {
-          const { data: userData, error } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', session.user.id)
+          const { data } = await supabase
+            .from("users")
+            .select("role")
+            .eq("id", session.user.id)
             .maybeSingle();
-          
-          if (!error && userData) {
-            setUserRole(userData.role);
-          } else {
-            setUserRole("student");
+          if (data?.role) {
+            setUserRole(data.role);
+            localStorage.setItem("userRole", data.role);
           }
         } catch (err) {
-          console.error("Unexpected error in auth change:", err);
-          setUserRole("student");
+          console.error("AppSidebar: auth change role error", err);
         }
-      } else {
-        setUserRole("student");
       }
-      setLoading(false);
-    });
+    );
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const navItems = getNavItems(userRole);
 
-  if (loading) {
-    return (
-      <aside className="w-[220px] min-w-[220px] h-screen bg-white border-r flex items-center justify-center">
-        <div className="animate-pulse text-gray-400">Loading...</div>
-      </aside>
-    );
-  }
-
   return (
     <TooltipProvider delayDuration={300}>
       <aside className="w-[220px] min-w-[220px] h-screen bg-white border-r border-gray-100 flex flex-col sticky top-0 overflow-hidden shadow-sm">
-        {/* Logo with Image */}
+
+        {/* Logo */}
         <div className="px-4 py-5 border-b border-gray-100">
           <div className="relative w-[150px] h-[48px]">
             <Image
@@ -215,7 +170,7 @@ export default function AppSidebar() {
           </p>
         </div>
 
-        {/* Section Label */}
+        {/* Section label */}
         <p className="text-[9px] font-bold tracking-[0.14em] text-gray-400 uppercase px-3.5 pt-3 pb-1.5">
           Main Menu
         </p>
@@ -228,7 +183,7 @@ export default function AppSidebar() {
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname?.startsWith(item.href));
               const Icon = item.icon;
-              
+
               return (
                 <Tooltip key={item.href}>
                   <TooltipTrigger asChild>
@@ -237,8 +192,8 @@ export default function AppSidebar() {
                       className={`
                         flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium
                         transition-all duration-150 relative group
-                        ${isActive 
-                          ? "bg-indigo-50 text-indigo-600 font-semibold" 
+                        ${isActive
+                          ? "bg-indigo-50 text-indigo-600 font-semibold"
                           : "text-gray-500 hover:bg-gray-50 hover:text-indigo-600"
                         }
                       `}
@@ -264,7 +219,7 @@ export default function AppSidebar() {
           </div>
         </nav>
 
-        {/* Upgrade card - Show for EVERY role now */}
+        {/* Upgrade card */}
         <div className="sidebar-upgrade">
           <span className="sidebar-upgrade-tag">✦ Enterprise Plan</span>
           <span className="sidebar-upgrade-desc">
@@ -294,7 +249,7 @@ export default function AppSidebar() {
 
         <Separator style={{ background: "#F0F0FA" }} />
 
-        {/* Bottom Section */}
+        {/* Help link */}
         <div className="px-2.5 pb-4 pt-2">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -311,6 +266,7 @@ export default function AppSidebar() {
             </TooltipContent>
           </Tooltip>
         </div>
+
       </aside>
     </TooltipProvider>
   );

@@ -19,7 +19,6 @@ const SidebarContext = createContext<SidebarContextType>({
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(true);
-
   const toggle = () => setIsOpen((prev) => !prev);
   const close  = () => setIsOpen(false);
 
@@ -35,8 +34,28 @@ export function useSidebar() {
 }
 
 // ─── Shell ──────────────────────────────────────────────────────
+// NOTE: DashboardShell must be rendered INSIDE SidebarProvider.
+// The correct usage in your layout.tsx is:
+//
+//   <SidebarProvider>
+//     <DashboardShell>{children}</DashboardShell>
+//   </SidebarProvider>
+//
+// If SidebarProvider wraps DashboardShell in layout.tsx already, you're good.
+// If not, the simplest fix is to have DashboardShell wrap itself — see below.
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
+  return (
+    // Self-contained: SidebarProvider lives here so toggle always works
+    // regardless of how the parent layout is structured.
+    <SidebarProvider>
+      <DashboardShellInner>{children}</DashboardShellInner>
+    </SidebarProvider>
+  );
+}
+
+// Inner shell that can safely consume the context
+function DashboardShellInner({ children }: { children: ReactNode }) {
   const { isOpen } = useSidebar();
 
   return (
@@ -51,7 +70,6 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
           position: relative;
         }
 
-        /* Sidebar wrapper — collapses width on desktop */
         .dash-sidebar-wrapper {
           flex-shrink: 0;
           width: 220px;
@@ -71,7 +89,6 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
           min-width: 0;
         }
 
-        /* Mobile: sidebar slides over content */
         @media (max-width: 768px) {
           .dash-sidebar-wrapper {
             position: fixed;
@@ -88,12 +105,8 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
             opacity: 1;
             transform: translateX(-100%);
           }
-          .dash-sidebar-backdrop {
-            display: block;
-          }
         }
 
-        /* Backdrop (mobile only) */
         .dash-sidebar-backdrop {
           display: none;
           position: fixed;
@@ -119,7 +132,6 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   );
 }
 
-// Backdrop — closes sidebar when tapped on mobile
 function MobileBackdrop() {
   const { isOpen, close } = useSidebar();
   if (!isOpen) return null;

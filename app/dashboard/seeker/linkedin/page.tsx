@@ -216,8 +216,6 @@ export default function LinkedInAnalysisPage() {
     
     if (savedCooldown && parseInt(savedCooldown) > Date.now()) {
       setCooldownUntil(parseInt(savedCooldown));
-      // Also set an error message to show the banner
-      setError("Rate limit exceeded. Please wait for the cooldown to expire.");
     } else if (savedCooldown) {
       // Clear expired cooldown
       localStorage.removeItem('linkedin_cooldown_until');
@@ -276,17 +274,21 @@ export default function LinkedInAnalysisPage() {
   };
 
   // Check if error is 503/429 service unavailable or quota exceeded
-  const isServiceUnavailableError = (errorMsg: string) => {
-    return errorMsg.includes("503") || 
-           errorMsg.includes("429") ||
-           errorMsg.includes("quota") ||
-           errorMsg.includes("rate limit") ||
-           errorMsg.includes("Service Unavailable") ||
-           errorMsg.includes("high demand") ||
-           errorMsg.includes("busy") ||
-           errorMsg.includes("unavailable") ||
-           errorMsg.includes("try again later") ||
-           errorMsg.includes("Too Many Requests");
+  const isServiceUnavailableError = (response: any) => {
+    const message = response?.message || "";
+    const error = response?.error || "";
+    const combinedMessage = `${message} ${error}`.toLowerCase();
+    
+    return combinedMessage.includes("503") || 
+           combinedMessage.includes("429") ||
+           combinedMessage.includes("quota") ||
+           combinedMessage.includes("rate limit") ||
+           combinedMessage.includes("service unavailable") ||
+           combinedMessage.includes("high demand") ||
+           combinedMessage.includes("busy") ||
+           combinedMessage.includes("unavailable") ||
+           combinedMessage.includes("try again later") ||
+           combinedMessage.includes("too many requests");
   };
 
   const handleAnalyze = async (e: React.FormEvent) => {
@@ -323,37 +325,33 @@ export default function LinkedInAnalysisPage() {
         
         await fetchHistory();
       } else {
-        // Check for service unavailable or quota exceeded error
-        const errorMsg = response.message || response.error || "";
-        
-        if (isServiceUnavailableError(errorMsg)) {
+        // Check for service unavailable or quota exceeded error in the response
+        if (isServiceUnavailableError(response)) {
           // Set 1-hour cooldown
           const cooldownTime = Date.now() + (60 * 60 * 1000); // 1 hour
           setCooldownUntil(cooldownTime);
           localStorage.setItem('linkedin_cooldown_until', cooldownTime.toString());
-          // Set error message that will show the banner
-          setError(`The AI service quota has been exceeded or is currently unavailable. You've hit the rate limit. Please wait for the cooldown timer.`);
+          // Clear the error message since cooldown banner will show
+          setError("");
         } else {
-          setError(errorMsg || "Analysis failed. Please try again.");
+          setError(response?.message || "Analysis failed. Please try again.");
         }
       }
     } catch (err: any) {
       console.error("Analysis error:", err);
       
-      // Check for service unavailable or quota exceeded error
-      const errorMsg = err.message || err.toString() || "";
-      const errorResponse = err.response?.data || {};
-      const fullErrorMsg = `${errorMsg} ${JSON.stringify(errorResponse)}`;
+      // Check if the error response contains 503 information
+      const errorResponse = err.response?.data || err;
       
-      if (isServiceUnavailableError(fullErrorMsg)) {
+      if (isServiceUnavailableError(errorResponse)) {
         // Set 1-hour cooldown
         const cooldownTime = Date.now() + (60 * 60 * 1000); // 1 hour
         setCooldownUntil(cooldownTime);
         localStorage.setItem('linkedin_cooldown_until', cooldownTime.toString());
-        // Set error message that will show the banner
-        setError(`The AI service quota has been exceeded or is currently unavailable. You've hit the rate limit. Please wait for the cooldown timer.`);
+        // Clear the error message since cooldown banner will show
+        setError("");
       } else {
-        setError(errorMsg || "Something went wrong. Please try again.");
+        setError(err.message || "Something went wrong. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -406,10 +404,10 @@ export default function LinkedInAnalysisPage() {
               <div className="flex-1">
                 <h3 className="text-base font-bold text-red-800 mb-1 flex items-center gap-2">
                   <Timer className="w-4 h-4" />
-                  Rate Limit Exceeded
+                  Service Unavailable - Rate Limit Exceeded
                 </h3>
                 <p className="text-sm text-red-700 mb-2">
-                  The AI service quota has been exceeded or is currently unavailable. You've hit the rate limit.
+                  The AI service is currently experiencing high demand. You've hit the rate limit.
                 </p>
                 <div className="flex items-center gap-3 mt-3">
                   <div className="bg-white rounded-xl px-4 py-2 shadow-sm">
@@ -430,6 +428,9 @@ export default function LinkedInAnalysisPage() {
                     </p>
                   </div>
                 </div>
+                <p className="text-xs text-red-600 mt-3">
+                  This is due to high demand on the AI service. Your request has been rate-limited to ensure fair usage.
+                </p>
               </div>
             </div>
           </div>
@@ -443,15 +444,15 @@ export default function LinkedInAnalysisPage() {
 
             {/* Input Form */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-              <div className="p-4 sm:p-5 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-transparent">
+              <div className="p-3 sm:p-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-transparent">
                 <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
                   <User className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
                   Analyze Your Profile
                 </h2>
-                <p className="text-xs text-gray-400 mt-0.5">Enter URL or paste profile text</p>
+                <p className="text-xs text-gray-400 mt-0">Enter URL or paste profile text</p>
               </div>
 
-              <div className="p-4 sm:p-5 space-y-4">
+              <div className="p-3 sm:p-4 space-y-3">
                 {/* URL input */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">
@@ -482,7 +483,7 @@ export default function LinkedInAnalysisPage() {
                   <textarea
                     value={profileText}
                     onChange={e => setProfileText(e.target.value)}
-                    rows={12}
+                    rows={10}
                     disabled={isInCooldown()}
                     placeholder="Paste your headline, about section, experience, skills…"
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all resize-none leading-relaxed disabled:bg-gray-50 disabled:cursor-not-allowed"
@@ -514,13 +515,13 @@ export default function LinkedInAnalysisPage() {
 
             {/* History Sidebar */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-              <div className="p-4 sm:p-5 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-transparent">
+              <div className="p-3 sm:p-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-transparent">
                 <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-indigo-600" />
+                  <Clock className="w-3 h-3 text-indigo-600" />
                   Analysis History
                 </h2>
               </div>
-              <div className="p-3 max-h-72 overflow-y-auto">
+              <div className="p-3 max-h-36 overflow-y-auto">
                 {historyLoading ? (
                   <div className="flex items-center gap-2 p-3 text-gray-400">
                     <RefreshCw className="w-4 h-4 animate-spin" />
@@ -577,14 +578,14 @@ export default function LinkedInAnalysisPage() {
 
                 {/* AI Summary */}
                 {result.summary && (
-                  <div className={`rounded-2xl p-5 shadow-lg ${
+                  <div className={`rounded-2xl p-6 shadow-lg ${
                     result.isFallback 
                       ? "bg-gradient-to-br from-amber-500 to-orange-500" 
                       : "bg-gradient-to-br from-indigo-600 to-purple-600"
                   }`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Sparkles className="w-5 h-5 text-white shrink-0" />
-                      <h3 className="text-sm font-bold text-white">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Sparkles className="w-6 h-6 text-white shrink-0" />
+                      <h3 className="text-lg font-bold text-white">
                         {result.isFallback ? "Analysis Summary" : "AI Summary"}
                       </h3>
                     </div>
@@ -595,10 +596,10 @@ export default function LinkedInAnalysisPage() {
                 {/* Tabs */}
                 <Tabs defaultValue="strengths" className="w-full">
                   <TabsList className="grid w-full grid-cols-4 mb-3">
-                    <TabsTrigger value="strengths"  className="flex items-center gap-1 text-xs"><ThumbsUp  className="w-3 h-3 shrink-0" /><span className="hidden sm:inline">Strengths</span><span className="sm:hidden">Strong</span></TabsTrigger>
-                    <TabsTrigger value="weaknesses" className="flex items-center gap-1 text-xs"><ThumbsDown className="w-3 h-3 shrink-0" /><span className="hidden sm:inline">Weaknesses</span><span className="sm:hidden">Weak</span></TabsTrigger>
-                    <TabsTrigger value="keywords"   className="flex items-center gap-1 text-xs"><Target     className="w-3 h-3 shrink-0" /><span className="hidden sm:inline">Keywords</span><span className="sm:hidden">Keys</span></TabsTrigger>
-                    <TabsTrigger value="branding"   className="flex items-center gap-1 text-xs"><Star       className="w-3 h-3 shrink-0" /><span className="hidden sm:inline">Branding</span><span className="sm:hidden">Brand</span></TabsTrigger>
+                    <TabsTrigger value="strengths"  className="flex items-center gap-1 text-sm"><ThumbsUp  className="w-4 h-4 shrink-0" /><span className="hidden sm:inline">Strengths</span><span className="sm:hidden">Strong</span></TabsTrigger>
+                    <TabsTrigger value="weaknesses" className="flex items-center gap-1 text-sm"><ThumbsDown className="w-4 h-4 shrink-0" /><span className="hidden sm:inline">Weaknesses</span><span className="sm:hidden">Weak</span></TabsTrigger>
+                    <TabsTrigger value="keywords"   className="flex items-center gap-1 text-sm"><Target     className="w-4 h-4 shrink-0" /><span className="hidden sm:inline">Keywords</span><span className="sm:hidden">Keys</span></TabsTrigger>
+                    <TabsTrigger value="branding"   className="flex items-center gap-1 text-sm"><Star       className="w-4 h-4 shrink-0" /><span className="hidden sm:inline">Branding</span><span className="sm:hidden">Brand</span></TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="strengths">
