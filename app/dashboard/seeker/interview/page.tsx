@@ -297,7 +297,13 @@ export default function InterviewPage() {
     setInterviewActive(false);
     setShowHistory(false);
     setCurrentAnswerSaved(false);
-    setTimeout(() => setShowCompletionCard(true), 100);
+    // Reset to show main selection UI
+    setTimeout(() => {
+      setShowCompletionCard(true);
+      // Ensure we show the main dropdown by setting interviewActive and currentQuestion to false
+      setInterviewActive(false);
+      setCurrentQuestion("");
+    }, 100);
   };
 
   const handleTypeSelect = (typeName: string) => {
@@ -651,8 +657,27 @@ export default function InterviewPage() {
 
   const completedCount = questionsData.filter((q) => q.answer).length;
 
+  // Function to handle closing the completion card
+  const closeCompletionCard = () => {
+    setShowCompletionCard(false);
+    setInterviewCompleted(false);
+    // Reset all states to show main selection
+    setCurrentQuestion("");
+    setFeedback("");
+    setAnswer("");
+    setSessionId(null);
+    setCurrentQuestionNum(0);
+    setFinalScore(null);
+    setFinalFeedback("");
+    setQuestionsData([]);
+    setSubType("");
+    setShowSubTypeDropdown(false);
+    setInterviewActive(false);
+    setCurrentAnswerSaved(false);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/40">
+    <div className="min-h-screen">
       <div className="p-4 lg:p-6 max-w-7xl mx-auto">
 
         {/* ── Hero Banner ── */}
@@ -1088,15 +1113,15 @@ export default function InterviewPage() {
 
         {/* ── Interview Completed ── */}
         {interviewCompleted && showCompletionCard && (
-          <Card className="border-0 shadow-2xl rounded-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-500">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-4 right-4 z-10 text-gray-400 hover:text-gray-600"
-              onClick={resetToInitialState}
+          <Card className="border-0 shadow-2xl rounded-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 relative">
+            {/* Close Button - Top Right Corner */}
+            <button
+              onClick={closeCompletionCard}
+              className="absolute top-4 right-4 z-10 p-2 hover:bg-white/20 rounded-full transition-colors text-white/80 hover:text-white"
+              aria-label="Close completion card"
             >
-              <X className="w-5 h-5" />
-            </Button>
+              <X className="w-6 h-6" />
+            </button>
 
             {/* Top gradient */}
             <div className="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 p-8 text-center relative overflow-hidden">
@@ -1151,19 +1176,7 @@ export default function InterviewPage() {
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Button
                   onClick={() => {
-                    setInterviewCompleted(false);
-                    setShowCompletionCard(false);
-                    setCurrentQuestion("");
-                    setFeedback("");
-                    setAnswer("");
-                    setSessionId(null);
-                    setCurrentQuestionNum(0);
-                    setFinalScore(null);
-                    setFinalFeedback("");
-                    setQuestionsData([]);
-                    setSubType("");
-                    setShowSubTypeDropdown(false);
-                    setCurrentAnswerSaved(false);
+                    resetToInitialState();
                   }}
                   className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 rounded-xl shadow-lg font-semibold py-5"
                 >

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useSidebar } from "@/components/layout/DashboardShell";
 import Link from "next/link";
+import NotificationDropdown from "@/components/notification/NotificationDropdown";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,8 +77,6 @@ export default function DashboardNavbar({ title, subtitle }: DashboardNavbarProp
   const [displayTitle, setDisplayTitle] = useState(title);
   const [displaySub,   setDisplaySub]   = useState(subtitle ?? "");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  const notifCount = 3;
 
   // Ref to block any async profile work the instant logout begins
   const loggingOutRef = useRef(false);
@@ -258,27 +257,6 @@ export default function DashboardNavbar({ title, subtitle }: DashboardNavbarProp
 
         .navbar-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 
-        .navbar-icon-btn {
-          width: 40px; height: 40px;
-          border-radius: 12px;
-          background: #F4F4FC;
-          border: 1.5px solid #E8E8F4;
-          display: flex; align-items: center; justify-content: center;
-          cursor: pointer; color: #7070A0;
-          position: relative;
-          transition: background .15s, border-color .15s, color .15s;
-          flex-shrink: 0; padding: 0;
-        }
-        .navbar-icon-btn:hover { background: #EAEAF8; border-color: #5B5BD6; color: #5B5BD6; }
-
-        .navbar-notif-badge {
-          position: absolute; top: 4px; right: 4px;
-          width: 18px; height: 18px;
-          background: #5B5BD6; border-radius: 50%; border: 2px solid white;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 9px; font-weight: 800; color: white; line-height: 1;
-        }
-
         .navbar-user-chip {
           display: flex; align-items: center; gap: 10px;
           padding: 4px 6px 4px 14px;
@@ -330,9 +308,7 @@ export default function DashboardNavbar({ title, subtitle }: DashboardNavbarProp
           .navbar-user-chip { padding: 4px; }
         }
         @media (max-width: 480px) {
-          .navbar-notif-btn { display: none; }
           .navbar-hamburger { width: 36px; height: 36px; }
-          .navbar-icon-btn  { width: 36px; height: 36px; }
         }
       `}</style>
 
@@ -377,25 +353,8 @@ export default function DashboardNavbar({ title, subtitle }: DashboardNavbarProp
           {/* ── RIGHT ── */}
           <div className="navbar-right">
 
-            {/* Notification bell */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" className="navbar-icon-btn navbar-notif-btn" aria-label="Notifications">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                  </svg>
-                  {notifCount > 0 && (
-                    <span className="navbar-notif-badge">
-                      {notifCount > 9 ? "9+" : notifCount}
-                    </span>
-                  )}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs">
-                {notifCount} new notifications
-              </TooltipContent>
-            </Tooltip>
+            {/* Notification Dropdown - Replaced the bell icon */}
+            <NotificationDropdown />
 
             {/* User dropdown */}
             <DropdownMenu>
