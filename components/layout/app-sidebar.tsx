@@ -54,7 +54,7 @@ const NAV_CONFIG: Record<string, NavItem[]> = {
     { label: "Headshot",  href: "/dashboard/seeker/headshot",  icon: Camera },
     { label: "Interview", href: "/dashboard/seeker/interview", icon: Mic },
     { label: "Coach",     href: "/dashboard/seeker/coach",     icon: Users },
-    { label: "Sessions",  href: "/dashboard/seeker/sessions",  icon: Calendar },
+    { label: "Job Insights",  href: "/dashboard/seeker/job-insights",  icon: BarChart3 },
     { label: "Progress",  href: "/dashboard/seeker/progress",  icon: TrendingUp },
     { label: "Settings",  href: "/dashboard/seeker/settings",  icon: Settings },
   ],
