@@ -31,6 +31,7 @@ import {
   Target,
   Clock,
   Zap,
+  ArrowLeft as BackArrow,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -67,9 +68,9 @@ const Modal = ({
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 p-6 max-h-[90vh] overflow-y-auto border border-gray-100">
         <div className="flex justify-between items-center mb-4 sticky top-0 bg-white py-2">
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-base font-semibold text-gray-900">{title}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100">
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
         {children}
@@ -80,13 +81,13 @@ const Modal = ({
 
 // Stat Card component
 const StatCard = ({ icon, value, label, color }: { icon: React.ReactNode; value: string | number; label: string; color: string }) => (
-  <div className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-3`}>
-    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
+  <div className={`bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 flex items-center gap-3`}>
+    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${color}`}>
       {icon}
     </div>
     <div>
-      <p className="text-xl font-bold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-500">{label}</p>
+      <p className="text-lg font-bold text-gray-900">{value}</p>
+      <p className="text-[10px] text-gray-500">{label}</p>
     </div>
   </div>
 );
@@ -166,7 +167,7 @@ export default function InterviewPage() {
   const interviewTypes = [
     {
       name: "Frontend",
-      icon: <Code className="w-5 h-5" />,
+      icon: <Code className="w-4 h-4" />,
       color: "from-blue-500 to-cyan-500",
       bgColor: "bg-blue-50",
       textColor: "text-blue-600",
@@ -183,7 +184,7 @@ export default function InterviewPage() {
     },
     {
       name: "Backend",
-      icon: <Server className="w-5 h-5" />,
+      icon: <Server className="w-4 h-4" />,
       color: "from-green-500 to-emerald-500",
       bgColor: "bg-green-50",
       textColor: "text-green-600",
@@ -200,7 +201,7 @@ export default function InterviewPage() {
     },
     {
       name: "Full Stack",
-      icon: <FolderGit2 className="w-5 h-5" />,
+      icon: <FolderGit2 className="w-4 h-4" />,
       color: "from-purple-500 to-pink-500",
       bgColor: "bg-purple-50",
       textColor: "text-purple-600",
@@ -215,7 +216,7 @@ export default function InterviewPage() {
     },
     {
       name: "HR",
-      icon: <Users className="w-5 h-5" />,
+      icon: <Users className="w-4 h-4" />,
       color: "from-orange-500 to-red-500",
       bgColor: "bg-orange-50",
       textColor: "text-orange-600",
@@ -230,7 +231,7 @@ export default function InterviewPage() {
     },
     {
       name: "Behavioral",
-      icon: <Brain className="w-5 h-5" />,
+      icon: <Brain className="w-4 h-4" />,
       color: "from-indigo-500 to-purple-500",
       bgColor: "bg-indigo-50",
       textColor: "text-indigo-600",
@@ -297,10 +298,8 @@ export default function InterviewPage() {
     setInterviewActive(false);
     setShowHistory(false);
     setCurrentAnswerSaved(false);
-    // Reset to show main selection UI
     setTimeout(() => {
       setShowCompletionCard(true);
-      // Ensure we show the main dropdown by setting interviewActive and currentQuestion to false
       setInterviewActive(false);
       setCurrentQuestion("");
     }, 100);
@@ -414,7 +413,6 @@ export default function InterviewPage() {
       const data = await response.json();
 
       if (data.success) {
-        // Save current answer and feedback locally
         const updatedQuestions = [...questionsData];
         updatedQuestions[currentQuestionNum - 1] = {
           question: currentQuestion,
@@ -428,7 +426,6 @@ export default function InterviewPage() {
 
         toast.success(`Answer saved for Question ${currentQuestionNum}!`);
 
-        // Check if this was the last question
         if (data.completed) {
           setInterviewCompleted(true);
           setFinalScore(data.score || Math.floor(Math.random() * 5) + 6);
@@ -442,9 +439,7 @@ export default function InterviewPage() {
           return;
         }
 
-        // Use the question from the answer API response directly
         if (data.question) {
-          // Update questionsData with the next question text
           const nextUpdated = [...updatedQuestions];
           nextUpdated[currentQuestionNum] = {
             ...nextUpdated[currentQuestionNum],
@@ -459,7 +454,6 @@ export default function InterviewPage() {
           setCurrentAnswerSaved(false);
           toast.info(`Question ${currentQuestionNum + 1} of ${totalQuestions}`);
         } else {
-          // Fallback: if backend doesn't return question, show a message
           toast.error("Could not load next question. Please contact support.");
         }
       } else {
@@ -657,11 +651,9 @@ export default function InterviewPage() {
 
   const completedCount = questionsData.filter((q) => q.answer).length;
 
-  // Function to handle closing the completion card
   const closeCompletionCard = () => {
     setShowCompletionCard(false);
     setInterviewCompleted(false);
-    // Reset all states to show main selection
     setCurrentQuestion("");
     setFeedback("");
     setAnswer("");
@@ -678,41 +670,40 @@ export default function InterviewPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="p-4 lg:p-6 max-w-7xl mx-auto">
+      <div className="p-3 sm:p-4 lg:p-5 max-w-7xl mx-auto">
 
         {/* ── Hero Banner ── */}
-        <div className="mb-8">
-          <div className="relative bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 rounded-3xl p-6 lg:p-8 text-white overflow-hidden shadow-2xl">
-            {/* Decorative blobs */}
+        <div className="mb-6">
+          <div className="relative bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 rounded-3xl p-5 lg:p-6 text-white overflow-hidden shadow-2xl">
             <div className="absolute -top-10 -right-10 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
             <div className="absolute -bottom-8 left-1/3 w-64 h-32 bg-indigo-400/20 rounded-full blur-2xl" />
 
-            <div className="relative flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div className="relative flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-2">
                   <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
-                    <Brain className="w-4 h-4" />
+                    <Brain className="w-3.5 h-3.5" />
                   </div>
-                  <span className="text-sm font-medium text-white/90 tracking-wide">
+                  <span className="text-[10px] font-medium text-white/90 tracking-wide">
                     AI-Powered Interview Practice
                   </span>
                 </div>
-                <h1 className="text-2xl lg:text-4xl font-bold mb-2 tracking-tight">
+                <h1 className="text-xl lg:text-2xl font-bold mb-1.5 tracking-tight">
                   Master Your Interviews
                 </h1>
-                <p className="text-white/80 text-sm lg:text-base mb-5 max-w-lg">
+                <p className="text-white/80 text-sm lg:text-sm mb-4 max-w-lg">
                   Practice with AI, get instant feedback, and build the confidence to ace any interview.
                 </p>
-                <div className="flex gap-3 flex-wrap">
+                <div className="flex gap-2 flex-wrap">
                   <Button
                     onClick={() => {
                       setShowHistory(false);
                       setInterviewCompleted(false);
                       setShowCompletionCard(true);
                     }}
-                    className="bg-white text-purple-700 hover:bg-purple-50 shadow-lg font-semibold transition-all duration-200"
+                    className="bg-white text-purple-700 hover:bg-purple-50 shadow-lg font-semibold transition-all duration-200 text-xs px-4 py-2"
                   >
-                    <PlayCircle className="w-4 h-4 mr-2" />
+                    <PlayCircle className="w-3.5 h-3.5 mr-1.5" />
                     New Interview
                   </Button>
                   <Button
@@ -722,61 +713,79 @@ export default function InterviewPage() {
                       setShowCompletionCard(true);
                       if (!showHistory) filterHistoryByType();
                     }}
-                    className={`font-semibold shadow-lg transition-all duration-200 ${
+                    className={`font-semibold shadow-lg transition-all duration-200 text-xs px-4 py-2 ${
                       showHistory
                         ? "bg-white/20 text-white border border-white/30 hover:bg-white/30"
                         : "bg-white/10 text-white border border-white/20 hover:bg-white/20"
                     }`}
                   >
-                    <History className="w-4 h-4 mr-2" />
+                    <History className="w-3.5 h-3.5 mr-1.5" />
                     {showHistory ? "Hide History" : "View History"}
                   </Button>
                 </div>
               </div>
 
-              {/* Stats cluster */}
-              <div className="hidden lg:flex gap-3">
-                <div className="bg-white/15 backdrop-blur-md rounded-2xl p-4 border border-white/20 text-center min-w-[100px]">
-                  <p className="text-3xl font-bold">{filteredHistory.length}</p>
-                  <p className="text-xs text-white/70 mt-1">{interviewType} Sessions</p>
+              <div className="hidden lg:flex gap-2">
+                <div className="bg-white/15 backdrop-blur-md rounded-xl p-3 border border-white/20 text-center min-w-[80px]">
+                  <p className="text-xl font-bold">{filteredHistory.length}</p>
+                  <p className="text-[9px] text-white/70 mt-0.5">{interviewType} Sessions</p>
                 </div>
-                <div className="bg-white/15 backdrop-blur-md rounded-2xl p-4 border border-white/20 text-center min-w-[100px]">
-                  <p className="text-3xl font-bold">
+                <div className="bg-white/15 backdrop-blur-md rounded-xl p-3 border border-white/20 text-center min-w-[80px]">
+                  <p className="text-xl font-bold">
                     {filteredHistory.filter((h) => h.score && h.score >= 7).length}
                   </p>
-                  <p className="text-xs text-white/70 mt-1">Good Scores</p>
+                  <p className="text-[9px] text-white/70 mt-0.5">Good Scores</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
+        {/* ── Back Arrow when viewing history ── */}
+        {showHistory && (
+          <div className="mb-4">
+            <button
+              onClick={() => {
+                setShowHistory(false);
+                setInterviewCompleted(false);
+                setShowCompletionCard(true);
+                setInterviewActive(false);
+                setCurrentQuestion("");
+              }}
+              className="flex items-center gap-2 text-purple-600 hover:text-purple-800 transition-colors font-medium text-sm"
+            >
+              <BackArrow className="w-4 h-4" />
+              Back to Interview Selection
+            </button>
+          </div>
+        )}
+
         {/* ── Interview Type + Sub-type Selection ── */}
-        {showMainDropdown && (
-          <div className="mb-8">
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-4">
+        {showMainDropdown && !showHistory && (
+          <div className="mb-6">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-3">
               Choose Interview Type
             </p>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
               {interviewTypes.map((type) => (
                 <button
                   key={type.name}
                   ref={interviewType === type.name ? buttonRef : null}
                   onClick={() => handleTypeSelect(type.name)}
-                  className={`px-4 py-3.5 rounded-2xl font-medium transition-all duration-300 flex items-center justify-between gap-2 shadow-sm ${
+                  className={`px-3 py-3 rounded-xl font-medium transition-all duration-300 flex items-center justify-between gap-1.5 shadow-sm text-xs ${
                     interviewType === type.name
                       ? `bg-gradient-to-r ${type.color} text-white shadow-lg scale-105`
                       : "bg-white text-gray-700 hover:shadow-md border border-gray-200 hover:scale-102"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     {type.icon}
-                    <span className="text-sm">{type.name}</span>
+                    <span className="text-xs">{type.name}</span>
                   </div>
                   {interviewType === type.name && (
                     <ChevronDown
-                      className={`w-4 h-4 transition-transform duration-200 ${
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
                         showSubTypeDropdown ? "rotate-180" : ""
                       }`}
                     />
@@ -785,52 +794,48 @@ export default function InterviewPage() {
               ))}
             </div>
 
-            {/* Dropdown Panel */}
             {showSubTypeDropdown && currentTypeData && (
               <div ref={dropdownRef} className="animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
-                  {/* Header */}
-                  <div className={`bg-gradient-to-r ${currentTypeData.color} p-4`}>
-                    <p className="text-white font-semibold">
+                <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+                  <div className={`bg-gradient-to-r ${currentTypeData.color} p-3`}>
+                    <p className="text-white font-semibold text-sm">
                       Select a {currentTypeData.name} Technology
                     </p>
-                    <p className="text-white/70 text-xs mt-0.5">
+                    <p className="text-white/70 text-[10px] mt-0.5">
                       Choose the specific area you want to practice
                     </p>
                   </div>
 
-                  {/* Search */}
-                  <div className="p-4 border-b border-gray-100">
+                  <div className="p-3 border-b border-gray-100">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                       <input
                         type="text"
                         placeholder={`Search ${interviewType} technologies...`}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                        className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-xs"
                         autoFocus
                       />
                     </div>
                   </div>
 
-                  {/* Sub-types Grid */}
-                  <div className="p-4 max-h-80 overflow-y-auto">
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  <div className="p-3 max-h-64 overflow-y-auto">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                       {filteredSubTypes.map((sub) => (
                         <button
                           key={sub.name}
                           onClick={() => handleSubTypeSelect(sub.name)}
-                          className={`group p-3.5 rounded-xl text-left transition-all duration-200 hover:scale-105 ${
+                          className={`group p-3 rounded-lg text-left transition-all duration-200 hover:scale-105 text-xs ${
                             subType === sub.name
                               ? `bg-gradient-to-r ${currentTypeData.color} text-white shadow-lg`
                               : "bg-gray-50 hover:bg-gray-100 border border-gray-100 hover:border-gray-200 hover:shadow-md"
                           }`}
                         >
-                          <div className="flex items-center gap-2">
-                            <span className="text-xl">{sub.icon}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base">{sub.icon}</span>
                             <p
-                              className={`font-medium text-sm ${
+                              className={`font-medium text-xs ${
                                 subType === sub.name ? "text-white" : "text-gray-700"
                               }`}
                             >
@@ -841,8 +846,8 @@ export default function InterviewPage() {
                       ))}
                     </div>
                     {filteredSubTypes.length === 0 && (
-                      <div className="text-center py-10">
-                        <p className="text-gray-400 text-sm">No technologies found</p>
+                      <div className="text-center py-6">
+                        <p className="text-gray-400 text-xs">No technologies found</p>
                       </div>
                     )}
                   </div>
@@ -850,18 +855,17 @@ export default function InterviewPage() {
               </div>
             )}
 
-            {/* Selected Technology Display */}
             {subType && !showSubTypeDropdown && (
-              <div className="mt-6 flex items-center gap-4 p-5 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl border border-purple-100 shadow-sm">
-                <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center text-2xl">
+              <div className="mt-4 flex items-center gap-3 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-100 shadow-sm">
+                <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-xl">
                   {currentTypeData?.subTypes.find((s) => s.name === subType)?.icon}
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
+                  <p className="text-[9px] text-gray-400 font-medium uppercase tracking-wide">
                     Selected Technology
                   </p>
-                  <p className="font-bold text-gray-900 text-lg">{subType}</p>
-                  <p className="text-xs text-purple-600">{interviewType} Interview • 10 Questions</p>
+                  <p className="font-bold text-gray-900 text-sm">{subType}</p>
+                  <p className="text-[10px] text-purple-600">{interviewType} Interview • 10 Questions</p>
                 </div>
                 <Button
                   variant="ghost"
@@ -870,26 +874,25 @@ export default function InterviewPage() {
                     setSubType("");
                     setShowSubTypeDropdown(true);
                   }}
-                  className="text-purple-600 hover:text-purple-700 hover:bg-purple-100 rounded-xl"
+                  className="text-purple-600 hover:text-purple-700 hover:bg-purple-100 rounded-lg text-xs px-3 py-1.5"
                 >
-                  <RefreshCw className="w-4 h-4 mr-1" />
+                  <RefreshCw className="w-3.5 h-3.5 mr-1" />
                   Change
                 </Button>
               </div>
             )}
 
-            {/* Start Button */}
             {subType && (
-              <div className="mt-6 flex justify-center">
+              <div className="mt-4 flex justify-center">
                 <Button
                   onClick={startInterview}
                   disabled={loading}
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-xl px-10 py-6 text-lg rounded-2xl font-semibold transition-all duration-200 hover:scale-105 hover:shadow-2xl"
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-xl px-8 py-5 text-sm rounded-xl font-semibold transition-all duration-200 hover:scale-105 hover:shadow-2xl"
                 >
                   {loading ? (
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
-                    <PlayCircle className="w-5 h-5 mr-2" />
+                    <PlayCircle className="w-4 h-4 mr-2" />
                   )}
                   Start {subType} Interview
                 </Button>
@@ -900,29 +903,29 @@ export default function InterviewPage() {
 
         {/* ── Empty State ── */}
         {!interviewActive && !currentQuestion && !showHistory && !interviewCompleted && !subType && showMainDropdown && (
-          <Card className="border-0 shadow-xl bg-white rounded-3xl overflow-hidden">
-            <CardContent className="p-12 text-center">
-              <div className="relative w-24 h-24 mx-auto mb-6">
-                <div className="w-24 h-24 bg-gradient-to-br from-violet-100 to-indigo-100 rounded-3xl flex items-center justify-center rotate-6">
-                  <Brain className="w-12 h-12 text-violet-500" />
+          <Card className="border-0 shadow-xl bg-white rounded-2xl overflow-hidden">
+            <CardContent className="p-8 text-center">
+              <div className="relative w-20 h-20 mx-auto mb-4">
+                <div className="w-20 h-20 bg-gradient-to-br from-violet-100 to-indigo-100 rounded-2xl flex items-center justify-center rotate-6">
+                  <Brain className="w-10 h-10 text-violet-500" />
                 </div>
-                <div className="absolute -top-1 -right-1 w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-full flex items-center justify-center shadow-lg">
-                  <Zap className="w-4 h-4 text-white" />
+                <div className="absolute -top-1 -right-1 w-7 h-7 bg-gradient-to-br from-yellow-400 to-orange-400 rounded-full flex items-center justify-center shadow-lg">
+                  <Zap className="w-3.5 h-3.5 text-white" />
                 </div>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">Ready to practice?</h3>
-              <p className="text-gray-500 max-w-md mx-auto text-sm leading-relaxed">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Ready to practice?</h3>
+              <p className="text-gray-500 max-w-md mx-auto text-xs leading-relaxed">
                 Select an interview type above, choose a specific technology, and start your AI-powered practice session with 10 curated questions.
               </p>
-              <div className="mt-8 grid grid-cols-3 gap-4 max-w-sm mx-auto">
+              <div className="mt-6 grid grid-cols-3 gap-3 max-w-sm mx-auto">
                 {[
-                  { icon: <Target className="w-4 h-4" />, label: "10 Questions", color: "text-blue-500 bg-blue-50" },
-                  { icon: <Zap className="w-4 h-4" />, label: "Instant Feedback", color: "text-yellow-500 bg-yellow-50" },
-                  { icon: <Star className="w-4 h-4" />, label: "AI Scoring", color: "text-purple-500 bg-purple-50" },
+                  { icon: <Target className="w-3.5 h-3.5" />, label: "10 Questions", color: "text-blue-500 bg-blue-50" },
+                  { icon: <Zap className="w-3.5 h-3.5" />, label: "Instant Feedback", color: "text-yellow-500 bg-yellow-50" },
+                  { icon: <Star className="w-3.5 h-3.5" />, label: "AI Scoring", color: "text-purple-500 bg-purple-50" },
                 ].map((item) => (
-                  <div key={item.label} className={`${item.color} rounded-2xl p-3 flex flex-col items-center gap-1.5`}>
+                  <div key={item.label} className={`${item.color} rounded-xl p-2.5 flex flex-col items-center gap-1`}>
                     {item.icon}
-                    <span className="text-xs font-medium">{item.label}</span>
+                    <span className="text-[10px] font-medium">{item.label}</span>
                   </div>
                 ))}
               </div>
@@ -932,29 +935,29 @@ export default function InterviewPage() {
 
         {/* ── Active Interview Session ── */}
         {interviewActive && currentQuestion && (
-          <div className="space-y-5">
+          <div className="space-y-4">
             {/* Top Stats Row */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
               <StatCard
-                icon={<MessageCircle className="w-5 h-5 text-purple-600" />}
+                icon={<MessageCircle className="w-4 h-4 text-purple-600" />}
                 value={`${currentQuestionNum}/${totalQuestions}`}
                 label="Current Question"
                 color="bg-purple-50"
               />
               <StatCard
-                icon={<CheckCircle className="w-5 h-5 text-green-600" />}
+                icon={<CheckCircle className="w-4 h-4 text-green-600" />}
                 value={completedCount}
                 label="Answered"
                 color="bg-green-50"
               />
               <StatCard
-                icon={<Clock className="w-5 h-5 text-blue-600" />}
+                icon={<Clock className="w-4 h-4 text-blue-600" />}
                 value={`${totalQuestions - completedCount}`}
                 label="Remaining"
                 color="bg-blue-50"
               />
               <StatCard
-                icon={<Target className="w-5 h-5 text-orange-600" />}
+                icon={<Target className="w-4 h-4 text-orange-600" />}
                 value={subType}
                 label={interviewType}
                 color="bg-orange-50"
@@ -962,23 +965,23 @@ export default function InterviewPage() {
             </div>
 
             {/* Progress Bar */}
-            <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
-              <CardContent className="p-5">
-                <div className="flex justify-between items-center mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-700">Interview Progress</span>
-                    <Badge className="bg-purple-100 text-purple-700 text-xs">{subType}</Badge>
+            <Card className="border-0 shadow-lg rounded-xl overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-gray-700">Interview Progress</span>
+                    <Badge className="bg-purple-100 text-purple-700 text-[9px] px-1.5 py-0">{subType}</Badge>
                   </div>
-                  <span className="text-sm font-bold text-purple-600">
+                  <span className="text-xs font-bold text-purple-600">
                     {Math.round((currentQuestionNum / totalQuestions) * 100)}%
                   </span>
                 </div>
-                <Progress value={(currentQuestionNum / totalQuestions) * 100} className="h-3" />
-                <div className="flex justify-between mt-2">
+                <Progress value={(currentQuestionNum / totalQuestions) * 100} className="h-2" />
+                <div className="flex justify-between mt-1.5">
                   {Array.from({ length: totalQuestions }).map((_, i) => (
                     <div
                       key={i}
-                      className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                      className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
                         i < completedCount
                           ? "bg-purple-500 scale-110"
                           : i === currentQuestionNum - 1
@@ -997,92 +1000,93 @@ export default function InterviewPage() {
                 onClick={goToPreviousQuestion}
                 disabled={currentQuestionNum === 1 || submitting}
                 variant="outline"
-                className="border-purple-200 text-purple-600 hover:bg-purple-50 rounded-xl"
+                className="border-purple-200 text-purple-600 hover:bg-purple-50 rounded-lg text-xs px-3 py-1.5"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
                 Previous
               </Button>
               <Button
                 onClick={endInterview}
                 variant="outline"
-                className="border-red-200 text-red-500 hover:bg-red-50 rounded-xl text-sm"
+                className="border-red-200 text-red-500 hover:bg-red-50 rounded-lg text-xs px-3 py-1.5"
               >
-                <XCircle className="w-4 h-4 mr-2" />
+                <XCircle className="w-3.5 h-3.5 mr-1.5" />
                 End Interview
               </Button>
             </div>
 
             {/* Question Card */}
-            <Card className="border-0 shadow-xl rounded-3xl overflow-hidden">
-              <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-5">
+            <Card className="border-0 shadow-xl rounded-2xl overflow-hidden">
+              <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">{currentQuestionNum}</span>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                      <span className="text-white font-bold text-xs">{currentQuestionNum}</span>
                     </div>
                     <div>
-                      <p className="text-white/70 text-xs">Question {currentQuestionNum} of {totalQuestions}</p>
-                      <p className="text-white font-semibold text-sm">{interviewType} • {subType}</p>
+                      <p className="text-white/70 text-[10px]">Question {currentQuestionNum} of {totalQuestions}</p>
+                      <p className="text-white font-semibold text-xs">{interviewType} • {subType}</p>
                     </div>
                   </div>
-                  <Badge className="bg-white/20 text-white border-0 text-xs">
+                  <Badge className="bg-white/20 text-white border-0 text-[9px] px-2 py-0">
                     {interviewType}
                   </Badge>
                 </div>
               </div>
-              <CardContent className="p-6">
-                <p className="text-gray-800 text-base lg:text-lg leading-relaxed font-medium">
+              <CardContent className="p-5">
+                <p className="text-gray-800 text-sm lg:text-base leading-relaxed font-medium">
                   {currentQuestion}
                 </p>
               </CardContent>
             </Card>
 
-            {/* Answer Card */}
-            <Card className="border-0 shadow-xl rounded-3xl overflow-hidden">
-              <CardHeader className="bg-gray-50 border-b border-gray-100 px-6 py-4">
+            {/* Answer Card - Reduced spacing */}
+            <Card className="border-0 shadow-xl rounded-2xl overflow-hidden">
+              <CardHeader className="bg-gray-50 border-b border-gray-100 px-5 py-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-base text-gray-900">Your Answer</CardTitle>
-                    <CardDescription className="text-xs mt-0.5">
+                    <CardTitle className="text-sm text-gray-900">Your Answer</CardTitle>
+                    <CardDescription className="text-[10px] text-gray-400 mt-0.5">
                       Be specific and use examples where possible
                     </CardDescription>
                   </div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-[10px] text-gray-400">
                     {answer.length > 0 && `${answer.split(' ').filter(Boolean).length} words`}
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-6 space-y-4">
+              <CardContent className="px-5 pt-2 pb-5">
+                {/* Removed the mb-3 spacing between description and input */}
                 <Textarea
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
-                  rows={7}
+                  rows={6}
                   placeholder="Type your answer here... Be specific and provide examples when possible."
-                  className="resize-none rounded-xl border-gray-200 focus:border-purple-400 focus:ring-purple-400 text-sm leading-relaxed"
+                  className="resize-none rounded-lg border-gray-200 focus:border-purple-400 focus:ring-purple-400 text-sm leading-relaxed"
                   disabled={submitting}
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2.5 mt-3">
                   <Button
                     onClick={saveAnswerAndNext}
                     disabled={submitting || !answer.trim()}
-                    className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg rounded-xl font-semibold py-5 transition-all duration-200 hover:shadow-xl"
+                    className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg rounded-lg font-semibold py-4 text-xs transition-all duration-200 hover:shadow-xl"
                   >
                     {submitting ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                     ) : (
-                      <ArrowRight className="w-4 h-4 mr-2" />
+                      <ArrowRight className="w-3.5 h-3.5 mr-1.5" />
                     )}
                     Save & Next
                   </Button>
                   <Button
                     onClick={submitAnswerAndEnd}
                     disabled={submitting || !answer.trim()}
-                    className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-lg rounded-xl font-semibold py-5 transition-all duration-200 hover:shadow-xl"
+                    className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-lg rounded-lg font-semibold py-4 text-xs transition-all duration-200 hover:shadow-xl"
                   >
                     {submitting ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                     ) : (
-                      <Send className="w-4 h-4 mr-2" />
+                      <Send className="w-3.5 h-3.5 mr-1.5" />
                     )}
                     Submit & End
                   </Button>
@@ -1092,16 +1096,16 @@ export default function InterviewPage() {
 
             {/* Feedback Card */}
             {feedback && !interviewCompleted && currentAnswerSaved && (
-              <Card className="border-0 shadow-xl rounded-3xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-4">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-white" />
-                    <p className="text-white font-semibold">
+              <Card className="border-0 shadow-xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
+                <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-3">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-white" />
+                    <p className="text-white font-semibold text-xs">
                       AI Feedback — Question {currentQuestionNum - 1}
                     </p>
                   </div>
                 </div>
-                <CardContent className="p-6 bg-gradient-to-b from-emerald-50/50 to-white">
+                <CardContent className="p-5 bg-gradient-to-b from-emerald-50/50 to-white">
                   <div className="whitespace-pre-wrap text-gray-700 leading-relaxed text-sm">
                     {feedback}
                   </div>
@@ -1113,36 +1117,34 @@ export default function InterviewPage() {
 
         {/* ── Interview Completed ── */}
         {interviewCompleted && showCompletionCard && (
-          <Card className="border-0 shadow-2xl rounded-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 relative">
-            {/* Close Button - Top Right Corner */}
+          <Card className="border-0 shadow-2xl rounded-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-500 relative">
             <button
               onClick={closeCompletionCard}
-              className="absolute top-4 right-4 z-10 p-2 hover:bg-white/20 rounded-full transition-colors text-white/80 hover:text-white"
+              className="absolute top-3 right-3 z-10 p-1.5 hover:bg-white/20 rounded-full transition-colors text-white/80 hover:text-white"
               aria-label="Close completion card"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
 
-            {/* Top gradient */}
-            <div className="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 p-8 text-center relative overflow-hidden">
+            <div className="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-600 p-6 text-center relative overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(255,255,255,0.1)_0%,transparent_70%)]" />
               <div className="relative">
-                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/30">
-                  <CheckCircle className="w-10 h-10 text-white" />
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm border border-white/30">
+                  <CheckCircle className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="text-2xl lg:text-3xl font-bold text-white mb-1">
+                <h3 className="text-xl lg:text-2xl font-bold text-white mb-0.5">
                   {subType} Interview Complete!
                 </h3>
-                <p className="text-white/70 text-sm">Great effort — here's how you did</p>
+                <p className="text-white/70 text-xs">Great effort — here's how you did</p>
               </div>
             </div>
 
-            <CardContent className="p-8">
+            <CardContent className="p-6">
               {finalScore && (
-                <div className="flex justify-center mb-6">
+                <div className="flex justify-center mb-4">
                   <div className="text-center">
-                    <div className={`inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-lg font-bold ${getScoreColor(finalScore)}`}>
-                      <Star className="w-5 h-5" />
+                    <div className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold ${getScoreColor(finalScore)}`}>
+                      <Star className="w-4 h-4" />
                       {finalScore}/10 — {getScoreLabel(finalScore)}
                     </div>
                   </div>
@@ -1150,37 +1152,37 @@ export default function InterviewPage() {
               )}
 
               {finalFeedback && (
-                <div className="mb-6 p-5 bg-gray-50 rounded-2xl border border-gray-100">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
                     Overall Feedback
                   </p>
                   <p className="text-gray-700 text-sm leading-relaxed">{finalFeedback}</p>
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-3 mb-6 text-center">
-                <div className="bg-purple-50 rounded-2xl p-3">
-                  <p className="text-2xl font-bold text-purple-600">{completedCount}</p>
-                  <p className="text-xs text-gray-500 mt-1">Answered</p>
+              <div className="grid grid-cols-3 gap-2.5 mb-4 text-center">
+                <div className="bg-purple-50 rounded-xl p-2.5">
+                  <p className="text-xl font-bold text-purple-600">{completedCount}</p>
+                  <p className="text-[9px] text-gray-500 mt-0.5">Answered</p>
                 </div>
-                <div className="bg-indigo-50 rounded-2xl p-3">
-                  <p className="text-2xl font-bold text-indigo-600">{totalQuestions}</p>
-                  <p className="text-xs text-gray-500 mt-1">Total Qs</p>
+                <div className="bg-indigo-50 rounded-xl p-2.5">
+                  <p className="text-xl font-bold text-indigo-600">{totalQuestions}</p>
+                  <p className="text-[9px] text-gray-500 mt-0.5">Total Qs</p>
                 </div>
-                <div className="bg-green-50 rounded-2xl p-3">
-                  <p className="text-2xl font-bold text-green-600">{finalScore ?? "—"}</p>
-                  <p className="text-xs text-gray-500 mt-1">Score</p>
+                <div className="bg-green-50 rounded-xl p-2.5">
+                  <p className="text-xl font-bold text-green-600">{finalScore ?? "—"}</p>
+                  <p className="text-[9px] text-gray-500 mt-0.5">Score</p>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
                 <Button
                   onClick={() => {
                     resetToInitialState();
                   }}
-                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 rounded-xl shadow-lg font-semibold py-5"
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 rounded-lg shadow-lg font-semibold py-4 text-xs"
                 >
-                  <PlayCircle className="w-4 h-4 mr-2" />
+                  <PlayCircle className="w-3.5 h-3.5 mr-1.5" />
                   Start New Interview
                 </Button>
                 <Button
@@ -1191,9 +1193,9 @@ export default function InterviewPage() {
                     setShowCompletionCard(false);
                     filterHistoryByType();
                   }}
-                  className="border-purple-200 text-purple-600 hover:bg-purple-50 rounded-xl font-semibold py-5"
+                  className="border-purple-200 text-purple-600 hover:bg-purple-50 rounded-lg font-semibold py-4 text-xs"
                 >
-                  <History className="w-4 h-4 mr-2" />
+                  <History className="w-3.5 h-3.5 mr-1.5" />
                   View History
                 </Button>
               </div>
@@ -1203,32 +1205,36 @@ export default function InterviewPage() {
 
         {/* ── History Section ── */}
         {showHistory && (
-          <InterviewHistoryComponent
-            history={filteredHistory as any[]}
-            interviewType={interviewType}
-            loadingHistory={loadingHistory}
-            onRefresh={fetchInterviewHistory}
-            onDelete={deleteInterview}
-            onEdit={openEditModal}
-            onStartNew={() => {
-              setShowHistory(false);
-              setInterviewCompleted(false);
-              setShowCompletionCard(true);
-            }}
-          />
+          <div className="mt-4">
+            <InterviewHistoryComponent
+              history={filteredHistory as any[]}
+              interviewType={interviewType}
+              loadingHistory={loadingHistory}
+              onRefresh={fetchInterviewHistory}
+              onDelete={deleteInterview}
+              onEdit={openEditModal}
+              onStartNew={() => {
+                setShowHistory(false);
+                setInterviewCompleted(false);
+                setShowCompletionCard(true);
+                setInterviewActive(false);
+                setCurrentQuestion("");
+              }}
+            />
+          </div>
         )}
 
         {/* ── Pro Tips ── */}
         {!showHistory && !interviewActive && !currentQuestion && !interviewCompleted && showMainDropdown && (
-          <Card className="mt-6 border-0 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 shadow-sm">
-            <CardContent className="py-4 px-5">
-              <div className="flex items-start gap-3">
-                <div className="p-1.5 bg-amber-100 rounded-lg mt-0.5">
-                  <Lightbulb className="w-4 h-4 text-amber-600" />
+          <Card className="mt-4 border-0 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 shadow-sm">
+            <CardContent className="py-3 px-4">
+              <div className="flex items-start gap-2.5">
+                <div className="p-1 bg-amber-100 rounded-lg mt-0.5">
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-amber-800 mb-0.5">Pro Tips</p>
-                  <p className="text-xs text-amber-700 leading-relaxed">
+                  <p className="text-xs font-semibold text-amber-800 mb-0.5">Pro Tips</p>
+                  <p className="text-[10px] text-amber-700 leading-relaxed">
                     Select a specific technology for focused practice. For behavioral questions, use the STAR method (Situation, Task, Action, Result). Be specific and back up answers with real examples.
                   </p>
                 </div>
@@ -1240,33 +1246,33 @@ export default function InterviewPage() {
 
       {/* ── Edit Modal ── */}
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Your Answer">
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Question</p>
-            <p className="text-sm text-gray-700 bg-gray-50 p-4 rounded-xl leading-relaxed border border-gray-100">
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Question</p>
+            <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg leading-relaxed border border-gray-100">
               {editingItem?.current_question}
             </p>
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Your Answer</p>
+            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Your Answer</p>
             <Textarea
               value={editAnswer}
               onChange={(e) => setEditAnswer(e.target.value)}
-              rows={8}
+              rows={6}
               placeholder="Update your answer here..."
-              className="resize-none rounded-xl border-gray-200 text-sm"
+              className="resize-none rounded-lg border-gray-200 text-sm"
             />
           </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="outline" onClick={() => setIsEditModalOpen(false)} className="rounded-xl">
+          <div className="flex justify-end gap-2.5 pt-1.5">
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)} className="rounded-lg text-xs">
               Cancel
             </Button>
             <Button
               onClick={updateInterviewAnswer}
               disabled={isUpdating || !editAnswer.trim()}
-              className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 rounded-xl"
+              className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 rounded-lg text-xs"
             >
-              {isUpdating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              {isUpdating ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
               Save Changes
             </Button>
           </div>

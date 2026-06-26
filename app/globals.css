@@ -2109,3 +2109,24 @@ body {
 
 .dash-checklist-pts--done    { color: var(--d-green);  }
 .dash-checklist-pts--pending { color: var(--d-amber-dark); }
+
+/* ==========================================
+   Hide Scrollbar (Keep Scrolling Enabled)
+========================================== */
+
+/* Chrome, Edge, Safari */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Firefox */
+html {
+  scrollbar-width: none;
+}
+
+/* Internet Explorer & Old Edge */
+body {
+  -ms-overflow-style: none;
+}

@@ -13,7 +13,8 @@ import {
   ChevronUp,
   Trash2,
   Edit2,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -142,18 +143,18 @@ export default function InterviewHistoryComponent({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-2 mb-4">
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
-          <History className="w-5 h-5 text-purple-600" />
-          <h2 className="text-xl font-bold text-gray-900">Interview History</h2>
-          <Badge className="bg-purple-100 text-purple-700 ml-2">
+          <History className="w-4 h-4 text-purple-600" />
+          <h2 className="text-base font-bold text-gray-900">Interview History</h2>
+          <Badge className="bg-purple-100 text-purple-700 text-[10px] px-1.5 py-0 ml-1">
             {interviewType}
           </Badge>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={onRefresh}>
-            <RefreshCw className="w-4 h-4 mr-2" />
+          <Button variant="ghost" size="sm" onClick={onRefresh} className="text-xs px-3 py-1.5">
+            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
             Refresh
           </Button>
         </div>
@@ -161,14 +162,14 @@ export default function InterviewHistoryComponent({
 
       {/* Filter Info Bar */}
       <Card className="border-gray-100 shadow-lg bg-gradient-to-r from-purple-50 to-indigo-50">
-        <CardContent className="p-3">
+        <CardContent className="p-2.5">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-purple-600" />
-              <span className="text-sm text-gray-700">Showing interviews for:</span>
-              <Badge className="bg-purple-600 text-white">{interviewType}</Badge>
+            <div className="flex items-center gap-1.5">
+              <Filter className="w-3.5 h-3.5 text-purple-600" />
+              <span className="text-xs text-gray-700">Showing interviews for:</span>
+              <Badge className="bg-purple-600 text-white text-[10px] px-1.5 py-0">{interviewType}</Badge>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-[10px] text-gray-500">
               Total {sortedSessions.length} session{sortedSessions.length !== 1 ? 's' : ''} found
             </p>
           </div>
@@ -179,27 +180,27 @@ export default function InterviewHistoryComponent({
         <Card className="border-gray-100 shadow-lg">
           <CardContent className="p-8 text-center">
             <Loader2 className="w-8 h-8 text-purple-600 animate-spin mx-auto mb-3" />
-            <p className="text-gray-500">Loading history...</p>
+            <p className="text-sm text-gray-500">Loading history...</p>
           </CardContent>
         </Card>
       ) : sortedSessions.length === 0 ? (
         <Card className="border-gray-100 shadow-lg">
-          <CardContent className="p-12 text-center">
-            <History className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <CardContent className="p-10 text-center">
+            <History className="w-14 h-14 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-base font-semibold text-gray-900 mb-1.5">
               No {interviewType} Interviews Yet
             </h3>
-            <p className="text-gray-500 max-w-md mx-auto mb-6">
+            <p className="text-sm text-gray-500 max-w-md mx-auto mb-5">
               You haven't completed any {interviewType} interviews yet. 
               Start your first {interviewType} interview to see your progress here.
             </p>
-            <Button onClick={onStartNew} className="bg-gradient-to-r from-purple-600 to-indigo-600">
+            <Button onClick={onStartNew} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-xs px-4 py-2">
               Start {interviewType} Interview
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           {sortedSessions.map((session, sessionIndex) => {
             const isExpanded = expandedSessions.has(session.id);
             const completedCount = getCompletedCount(session);
@@ -208,33 +209,33 @@ export default function InterviewHistoryComponent({
             return (
               <Card key={session.id} className="border-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
                 {/* Session Header */}
-                <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                <div className="p-3.5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                   <div className="flex justify-between items-start flex-wrap gap-2">
                     <div 
-                      className="flex items-center gap-3 flex-wrap cursor-pointer flex-1"
+                      className="flex items-center gap-2 flex-wrap cursor-pointer flex-1"
                       onClick={() => toggleSession(session.id)}
                     >
-                      <Badge className="bg-purple-100 text-purple-700 text-sm px-3 py-1">
+                      <Badge className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5">
                         {interviewType} Interview {sessionIndex + 1}
                       </Badge>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-[10px] text-gray-500">
                         {formatDate(session.created_at)}
                       </span>
-                      <Badge className={`${completedCount === session.total_questions ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {completedCount}/{session.total_questions} Questions Answered
+                      <Badge className={`text-[10px] px-1.5 py-0 ${completedCount === session.total_questions ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {completedCount}/{session.total_questions} Answered
                       </Badge>
                       {avgScore && (
-                        <Badge className={getScoreColor(avgScore)}>
-                          Score: {avgScore}/10 • {getScoreLabel(avgScore)}
+                        <Badge className={`text-[10px] px-1.5 py-0 ${getScoreColor(avgScore)}`}>
+                          Score: {avgScore}/10
                         </Badge>
                       )}
                       {session.is_completed && (
-                        <Badge className="bg-blue-100 text-blue-700">
+                        <Badge className="bg-blue-100 text-blue-700 text-[10px] px-1.5 py-0">
                           Completed
                         </Badge>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5">
                       {/* Delete Session Button */}
                       <Button
                         size="sm"
@@ -245,7 +246,7 @@ export default function InterviewHistoryComponent({
                             onDelete(session.id);
                           }
                         }}
-                        className="bg-white text-red-600 hover:bg-red-50 border-red-200"
+                        className="bg-white text-red-600 hover:bg-red-50 border-red-200 text-[10px] px-2 py-0.5 h-7"
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>
@@ -257,12 +258,12 @@ export default function InterviewHistoryComponent({
                           e.stopPropagation();
                           toggleSession(session.id);
                         }}
-                        className="text-gray-500 hover:text-purple-600"
+                        className="text-gray-500 hover:text-purple-600 text-[10px] px-2 py-0.5 h-7"
                       >
                         {isExpanded ? (
-                          <ChevronUp className="w-4 h-4" />
+                          <ChevronUp className="w-3.5 h-3.5" />
                         ) : (
-                          <ChevronDown className="w-4 h-4" />
+                          <ChevronDown className="w-3.5 h-3.5" />
                         )}
                       </Button>
                     </div>
@@ -280,12 +281,12 @@ export default function InterviewHistoryComponent({
                         const hasAnswer = !!answer?.answer;
                         
                         return (
-                          <div key={qIndex} className="p-4 hover:bg-gray-50 transition-colors">
+                          <div key={qIndex} className="p-3.5 hover:bg-gray-50 transition-colors">
                             {/* Question Header with Edit button */}
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs">
-                                  Question {qIndex + 1}
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-1.5">
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0">
+                                  Q{qIndex + 1}
                                 </Badge>
                               </div>
                               {/* Edit Button for individual question */}
@@ -294,39 +295,39 @@ export default function InterviewHistoryComponent({
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleEditQuestion(session, qIndex)}
-                                  className="bg-white text-blue-600 hover:bg-blue-50 border-blue-200"
+                                  className="bg-white text-blue-600 hover:bg-blue-50 border-blue-200 text-[10px] px-2 py-0.5 h-7"
                                 >
                                   <Edit2 className="w-3 h-3 mr-1" />
-                                  Edit Answer
+                                  Edit
                                 </Button>
                               )}
                             </div>
                             
                             {/* Question */}
-                            <div className="mb-3">
-                              <p className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1">
+                            <div className="mb-2">
+                              <p className="text-xs font-semibold text-gray-700 mb-0.5 flex items-center gap-1">
                                 <MessageCircle className="w-3 h-3" />
                                 Question:
                               </p>
-                              <p className="text-sm text-gray-600">{question}</p>
+                              <p className="text-xs text-gray-600">{question}</p>
                             </div>
                             
                             {/* Answer */}
                             {hasAnswer ? (
-                              <div className="mb-3">
-                                <p className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1">
+                              <div className="mb-2">
+                                <p className="text-xs font-semibold text-gray-700 mb-0.5 flex items-center gap-1">
                                   <User className="w-3 h-3" />
                                   Your Answer:
                                 </p>
-                                <p className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg">
+                                <p className="text-xs text-gray-600 whitespace-pre-wrap bg-gray-50 p-2.5 rounded-lg">
                                   {answer.answer}
                                 </p>
                               </div>
                             ) : (
-                              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
-                                <div className="flex items-center gap-2 text-yellow-700">
-                                  <AlertCircle className="w-4 h-4" />
-                                  <p className="text-sm">Not answered yet</p>
+                              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2.5 mb-2">
+                                <div className="flex items-center gap-1.5 text-yellow-700">
+                                  <AlertCircle className="w-3.5 h-3.5" />
+                                  <p className="text-xs">Not answered yet</p>
                                 </div>
                               </div>
                             )}
@@ -334,11 +335,11 @@ export default function InterviewHistoryComponent({
                             {/* AI Feedback - only show for completed sessions or if feedback exists */}
                             {(session.ai_feedback || session.final_feedback) && hasAnswer && (
                               <div>
-                                <p className="text-sm font-semibold text-green-700 mb-1 flex items-center gap-1">
+                                <p className="text-xs font-semibold text-green-700 mb-0.5 flex items-center gap-1">
                                   <Sparkles className="w-3 h-3" />
                                   AI Feedback:
                                 </p>
-                                <p className="text-sm text-gray-600 whitespace-pre-wrap bg-green-50 p-3 rounded-lg">
+                                <p className="text-xs text-gray-600 whitespace-pre-wrap bg-green-50 p-2.5 rounded-lg">
                                   {session.final_feedback || session.ai_feedback || "Feedback will be available after completion"}
                                 </p>
                               </div>
