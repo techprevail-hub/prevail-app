@@ -551,7 +551,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-[80vh] flex items-start justify-center pt-60">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-12 h-12 text-violet-600 animate-spin" />
           <p className="text-slate-500 text-sm font-medium">Loading your dashboard…</p>
@@ -718,7 +718,7 @@ export default function DashboardPage() {
                 <div key={loc} className="flex items-center gap-2 hover:bg-slate-50 rounded-lg px-2 py-1.5 transition-colors">
                   <span className="text-[10px] font-bold text-slate-300 w-4">{i + 1}</span>
                   <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-sky-500 to-indigo-400 transition-all duration-1000 group-hover:from-sky-600 group-hover:to-indigo-500"
+                    <div className="h-full rounded-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-1000 group-hover:from-violet-700 group-hover:to-indigo-700"
                       style={{ width: `${100 - i * 18}%` }} />
                   </div>
                   <span className="text-[10px] font-semibold text-slate-600 w-16 text-right">{loc}</span>
