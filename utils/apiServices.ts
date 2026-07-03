@@ -70,28 +70,42 @@ const refreshToken = async (): Promise<boolean> => {
 
 // API Service
 export const api = {
-  async get(endpoint: string) {
+  async get(endpoint: string, params?: Record<string, any>) {
     try {
       const headers = await getAuthHeaders(false);
-      const response = await fetch(`${API_URL}${endpoint}`, {
+
+      // Build query string
+      const queryString = params
+        ? `?${new URLSearchParams(
+            Object.entries(params)
+              .filter(([_, value]) => value !== undefined && value !== null && value !== "")
+              .map(([key, value]) => [key, String(value)])
+          ).toString()}`
+        : "";
+
+      const response = await fetch(`${API_URL}${endpoint}${queryString}`, {
         method: "GET",
         headers,
       });
 
       if (response.status === 401) {
-        // Token expired, try to refresh once more
+        // Token expired, try to refresh
         const refreshed = await refreshToken();
+
         if (refreshed) {
-          // Retry the request with new token
           const newHeaders = await getAuthHeaders(false);
-          const retryResponse = await fetch(`${API_URL}${endpoint}`, {
-            method: "GET",
-            headers: newHeaders,
-          });
+
+          const retryResponse = await fetch(
+            `${API_URL}${endpoint}${queryString}`,
+            {
+              method: "GET",
+              headers: newHeaders,
+            }
+          );
+
           const retryData = await retryResponse.json();
           return retryData;
         } else {
-          // Redirect to login
           localStorage.clear();
           window.location.href = "/login";
           throw new Error("Session expired");
@@ -105,7 +119,6 @@ export const api = {
       throw error;
     }
   },
-
   async post(endpoint: string, body: any, options?: { isFormData?: boolean }) {
     const isFormData = options?.isFormData || body instanceof FormData;
     
