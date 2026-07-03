@@ -54,8 +54,9 @@ export const generatePDF = async (data: ResumeData, template: string) => {
   try {
     console.log("Generating PDF for template:", template);
     
-    // Create the PDF document instance
-    const pdfInstance = pdf(React.createElement(PDFRenderer, { template, data }));
+    // Create the PDF document - Fixed type issue
+    const DocumentComponent = PDFRenderer({ template, data });
+    const pdfInstance = pdf(DocumentComponent);
     
     // Generate the PDF blob with error handling
     let blob;
@@ -65,7 +66,7 @@ export const generatePDF = async (data: ResumeData, template: string) => {
       console.error("PDF generation error:", pdfError);
       // Retry once if it fails
       console.log("Retrying PDF generation...");
-      const retryInstance = pdf(React.createElement(PDFRenderer, { template, data }));
+      const retryInstance = pdf(PDFRenderer({ template, data }));
       blob = await retryInstance.toBlob();
     }
     
