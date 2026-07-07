@@ -6,7 +6,7 @@ import {
   ThumbsUp, ThumbsDown, Sparkles, Target, Zap, ArrowRight,
   RefreshCw, Clock, Star, Brain, Search, Cpu, Award,
   ChevronRight, BarChart3, Hash, FileText, Tag, AlertTriangle,
-  Hourglass, Timer,
+  Hourglass, Timer, Upload, X,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -143,7 +143,6 @@ function CircularScore({ score, label, icon: Icon, sublabel }: {
 // ── Types ────────────────────────────────────────────────────
 interface LinkedInResult {
   id?: string;
-  profileUrl?: string;
   score: number;
   profileCompletenessScore: number;
   keywordOptimizationScore: number;
@@ -182,7 +181,6 @@ interface HistoryItem {
 
 const mapHistory = (item: HistoryItem): LinkedInResult => ({
   id: item.id,
-  profileUrl: item.profile_url,
   score: item.score || 0,
   profileCompletenessScore: item.profile_completeness_score || 0,
   keywordOptimizationScore: item.keyword_optimization_score || 0,
@@ -200,7 +198,7 @@ const mapHistory = (item: HistoryItem): LinkedInResult => ({
 
 // ── Main Page ────────────────────────────────────────────────
 export default function LinkedInAnalysisPage() {
-  const [profileUrl, setProfileUrl]   = useState("");
+  const [linkedinPdf, setLinkedinPdf] = useState<File | null>(null);
   const [profileText, setProfileText] = useState("");
   const [loading, setLoading]         = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -303,17 +301,30 @@ export default function LinkedInAnalysisPage() {
     
     setError("");
     
-    if (!profileUrl.trim() && !profileText.trim())
-      return setError("Please provide a LinkedIn profile URL or paste your profile text.");
+    if (!linkedinPdf && !profileText.trim())
+      return setError("Please upload a LinkedIn PDF or paste your profile text.");
 
     setLoading(true);
     setResult(null);
     
     try {
-      const response = await api.post("/api/linkedin/analyze", { 
-        profileUrl, 
-        profileText 
-      });
+      const formData = new FormData();
+      
+      if (linkedinPdf) {
+        formData.append("linkedinPdf", linkedinPdf);
+      }
+      
+      formData.append("profileText", profileText);
+
+      const response = await api.post(
+        "/api/linkedin/analyze",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
       
       if (response.success) { 
         setResult(response.data);
@@ -360,7 +371,6 @@ export default function LinkedInAnalysisPage() {
 
   const loadHistoryItem = (item: HistoryItem) => {
     setResult(mapHistory(item));
-    setProfileUrl(item.profile_url || "");
     setProfileText(item.profile_text || "");
     setError("");
     setCooldownUntil(null);
@@ -390,7 +400,7 @@ export default function LinkedInAnalysisPage() {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">LinkedIn Profile Analyzer</h1>
           </div>
           <p className="text-gray-500 ml-12 sm:ml-14 text-xs sm:text-sm">
-            Paste your LinkedIn profile and get AI-powered insights to boost your visibility
+            Upload your LinkedIn Profile PDF or paste your profile text to get AI-powered insights.
           </p>
         </div>
 
@@ -449,23 +459,68 @@ export default function LinkedInAnalysisPage() {
                   <User className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
                   Analyze Your Profile
                 </h2>
-                <p className="text-xs text-gray-400 mt-0">Enter URL or paste profile text</p>
+                <p className="text-xs text-gray-400 mt-0">Upload PDF or paste profile text</p>
               </div>
 
               <div className="p-3 sm:p-4 space-y-3">
-                {/* URL input */}
+                {/* PDF Upload - Attractive with Upload Icon */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                    LinkedIn Profile URL
+                  <label className="block text-xs font-semibold text-gray-600 mb-2">
+                    Upload LinkedIn Profile PDF
                   </label>
-                  <input
-                    type="url"
-                    value={profileUrl}
-                    onChange={e => setProfileUrl(e.target.value)}
-                    placeholder="https://www.linkedin.com/in/your-profile"
-                    disabled={isInCooldown()}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all disabled:bg-gray-50 disabled:cursor-not-allowed"
-                  />
+
+                  {!linkedinPdf ? (
+                    <label
+                      htmlFor="linkedinPdf"
+                      className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-indigo-300 rounded-xl cursor-pointer transition bg-gradient-to-b from-indigo-50/40 to-transparent hover:from-indigo-50 hover:border-indigo-400 group"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-indigo-100 group-hover:bg-indigo-200 transition flex items-center justify-center mb-2">
+                        <Upload className="w-6 h-6 text-indigo-600 group-hover:scale-110 transition" />
+                      </div>
+
+                      <p className="text-sm font-medium text-gray-700 text-center px-2">
+                        Click to upload your LinkedIn PDF
+                      </p>
+
+                      <span className="text-xs text-gray-400">
+                        PDF only • Max 10 MB
+                      </span>
+
+                      <input
+                        id="linkedinPdf"
+                        type="file"
+                        accept=".pdf"
+                        className="hidden"
+                        disabled={isInCooldown()}
+                        onChange={(e) => {
+                          if (e.target.files?.length) {
+                            setLinkedinPdf(e.target.files[0]);
+                          }
+                        }}
+                      />
+                    </label>
+                  ) : (
+                    <div className="flex items-center gap-3 p-3 bg-indigo-50 border-2 border-indigo-300 rounded-xl">
+                      <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5 text-indigo-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {linkedinPdf.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {(linkedinPdf.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setLinkedinPdf(null)}
+                        className="p-1.5 rounded-lg hover:bg-red-100 transition text-gray-400 hover:text-red-600 flex-shrink-0"
+                        title="Remove file"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Divider */}
@@ -546,9 +601,6 @@ export default function LinkedInAnalysisPage() {
                           </span>
                           <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-indigo-400 transition-colors" />
                         </div>
-                        {item.profile_url && (
-                          <p className="text-xs text-indigo-500 truncate">{item.profile_url}</p>
-                        )}
                         <p className="text-[10px] text-gray-400 mt-1">
                           {item.created_at ? new Date(item.created_at).toLocaleDateString() : ""}
                         </p>
@@ -696,11 +748,11 @@ export default function LinkedInAnalysisPage() {
                 <div>
                   <h3 className="text-base sm:text-lg font-bold text-gray-900">No Profile Analyzed Yet</h3>
                   <p className="text-xs sm:text-sm text-gray-400 mt-1 max-w-xs mx-auto">
-                    Enter your LinkedIn URL or paste your profile text on the left to get AI-powered insights
+                    Upload your LinkedIn Profile PDF or paste your profile text to get AI-powered insights.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 mt-2 flex-wrap justify-center">
-                  {[["1","Paste profile"],["2","Click Analyze"],["3","Get insights"]].map(([n, t], i) => (
+                  {[["1","Upload/Paste"],["2","Click Analyze"],["3","Get insights"]].map(([n, t], i) => (
                     <div key={n} className="flex items-center gap-2">
                       <div className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5">
                         <span className="w-4 h-4 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">{n}</span>
