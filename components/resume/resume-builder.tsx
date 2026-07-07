@@ -137,7 +137,7 @@ function StepIndicator({ currentStep, onBack }: { currentStep: number; onBack?: 
   const steps = ["Template", "Form", "Success"];
   
   return (
-    <div className="flex items-center gap-2 mb-8">
+    <div className="flex items-center justify-center gap-8 mb-8">
       {/* Back Button */}
       {onBack && currentStep > 0 && (
         <button
@@ -150,23 +150,23 @@ function StepIndicator({ currentStep, onBack }: { currentStep: number; onBack?: 
       )}
       
       {steps.map((step, i) => (
-        <div key={i} className="flex items-center gap-2 flex-1">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm transition-all duration-300 ${
+        <div key={i} className="flex items-center gap-3">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-base transition-all duration-300 flex-shrink-0 ${
             i < currentStep
               ? "bg-emerald-500 text-white"
               : i === currentStep
-                ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white ring-2 ring-indigo-300 ring-offset-2"
+                ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white ring-4 ring-indigo-300 ring-offset-2"
                 : "bg-gray-200 text-gray-500"
           }`}>
-            {i < currentStep ? <Check className="w-4 h-4" /> : i + 1}
+            {i < currentStep ? <Check className="w-5 h-5" /> : i + 1}
           </div>
-          <span className={`text-xs sm:text-sm font-semibold transition-colors ${
+          <span className={`text-sm font-semibold transition-colors whitespace-nowrap ${
             i <= currentStep ? "text-gray-900" : "text-gray-400"
           }`}>
             {step}
           </span>
           {i < steps.length - 1 && (
-            <div className={`flex-1 h-1 rounded-full mx-2 transition-all ${
+            <div className={`w-24 h-1 rounded-full mx-3 transition-all ${
               i < currentStep ? "bg-emerald-500" : "bg-gray-200"
             }`} />
           )}
@@ -178,8 +178,8 @@ function StepIndicator({ currentStep, onBack }: { currentStep: number; onBack?: 
 
 function TemplateGallery({ onSelect }: { onSelect: (id: string) => void }) {
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
+    <div className="space-y-3">
+      <div className="text-center mb-6">
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Choose Your Template</h2>
         <p className="text-gray-600">Pick a template that matches your style and industry</p>
       </div>
@@ -193,7 +193,7 @@ function TemplateGallery({ onSelect }: { onSelect: (id: string) => void }) {
               className="group cursor-pointer"
             >
               <div className="rounded-xl overflow-hidden border-2 border-gray-200 hover:border-indigo-600 transition-all duration-300 hover:shadow-xl transform hover:scale-105 bg-white">
-                {/* Image Preview - Smaller height */}
+                {/* Image Preview */}
                 <div className="relative w-full h-72 bg-gray-100 overflow-hidden">
                   <Image
                     src={template.image}
@@ -202,11 +202,10 @@ function TemplateGallery({ onSelect }: { onSelect: (id: string) => void }) {
                     className="object-cover object-top group-hover:scale-105 transition-transform duration-300"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
-                  {/* Overlay gradient for better text visibility */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </div>
 
-                {/* Info Section - Smaller padding */}
+                {/* Info Section */}
                 <div className="p-3.5 bg-white">
                   <h3 className="font-bold text-gray-900 text-base mb-0.5">{template.name}</h3>
                   <p className="text-xs text-gray-600 mb-3">{template.description}</p>
@@ -220,43 +219,6 @@ function TemplateGallery({ onSelect }: { onSelect: (id: string) => void }) {
             </div>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-function SelectedTemplateCard({ template, onChange }: { template: string; onChange: () => void }) {
-  const templateInfo = TEMPLATES.find(t => t.id === template);
-
-  return (
-    <div className="mb-6 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 p-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative w-12 h-12 rounded-lg overflow-hidden border-2 border-indigo-200">
-            <Image
-              src={templateInfo?.image || ""}
-              alt={templateInfo?.name || ""}
-              fill
-              className="object-cover"
-            />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-medium">Selected Template</p>
-            <h3 className="text-lg font-bold text-gray-900">
-              {templateInfo?.name}
-            </h3>
-            <p className="text-sm text-gray-600 mt-0.5">
-              {templateInfo?.description}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onChange}
-          className="text-sm text-indigo-600 font-semibold hover:text-indigo-800 transition-colors flex items-center gap-1 bg-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all"
-        >
-          <Edit className="w-4 h-4" />
-          Change Template
-        </button>
       </div>
     </div>
   );
@@ -749,6 +711,84 @@ function SuccessScreen({ resumeId, onEdit, onDownloadPDF, onDownloadDOCX, loadin
     </div>
   );
 }
+
+// ============================================================
+// Selected Template Card Component - Shows below the preview image
+// ============================================================
+
+function SelectedTemplateCard({ template, onChange }: { template: string; onChange: () => void }) {
+  const templateInfo = TEMPLATES.find(t => t.id === template);
+
+  return (
+    <div className="mt-4 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="relative w-12 h-12 rounded-lg overflow-hidden border-2 border-indigo-200 flex-shrink-0">
+            <Image
+              src={templateInfo?.image || ""}
+              alt={templateInfo?.name || ""}
+              fill
+              className="object-cover"
+            />
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 font-medium">Selected Template</p>
+            <h3 className="text-lg font-bold text-gray-900">
+              {templateInfo?.name}
+            </h3>
+            <p className="text-sm text-gray-600 mt-0.5">
+              {templateInfo?.description}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onChange}
+          className="text-sm text-indigo-600 font-semibold hover:text-indigo-800 transition-colors flex items-center gap-1 bg-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all"
+        >
+          <Edit className="w-4 h-4" />
+          Change Template
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Template Preview Component - Shows on the right side of form
+// ============================================================
+
+function TemplatePreview({ template, onChangeTemplate }: { template: string; onChangeTemplate: () => void }) {
+  const templateInfo = TEMPLATES.find(t => t.id === template);
+  
+  if (!templateInfo) return null;
+  
+  return (
+    <div className="sticky top-8">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-lg">
+        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+          <h3 className="font-bold text-gray-900">Template Preview</h3>
+          <p className="text-xs text-gray-500">Selected: {templateInfo.name}</p>
+        </div>
+        <div className="relative w-full h-[500px] bg-gray-100">
+          <Image
+            src={templateInfo.image}
+            alt={templateInfo.name}
+            fill
+            className="object-contain object-top"
+            sizes="(max-width: 768px) 100vw, 50vw"
+            priority
+          />
+        </div>
+        {/* Selected Template Card - Now below the image with working change button */}
+        <SelectedTemplateCard 
+          template={template} 
+          onChange={onChangeTemplate}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
@@ -911,13 +951,8 @@ export default function ResumeBuilder() {
 
       {/* Step 2: Resume Form */}
       {step === 2 && selectedTemplate && (
-        <div className="animate-in fade-in duration-500 max-w-4xl mx-auto">
-          {/* Selected Template Card */}
-          <SelectedTemplateCard 
-            template={selectedTemplate} 
-            onChange={handleChangeTemplate} 
-          />
-          
+        <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in duration-500">
+          {/* Left: Form */}
           <div className="space-y-4">
             <ResumeForm data={resumeData} onDataChange={setResumeData} />
             
@@ -952,6 +987,14 @@ export default function ResumeBuilder() {
                 Delete Resume
               </button>
             )}
+          </div>
+
+          {/* Right: Template Preview Image with Selected Template Card below */}
+          <div>
+            <TemplatePreview 
+              template={selectedTemplate} 
+              onChangeTemplate={handleChangeTemplate}
+            />
           </div>
         </div>
       )}
