@@ -2,17 +2,16 @@
 
 import { useState } from "react";
 import {
-  ChevronDown, ChevronRight, FileText, Download, Edit, 
-  Check, X, Plus, Trash2, Eye, Zap, Sparkles, ArrowRight,
-  CheckCircle, Calendar, Briefcase, BookOpen, Code, Award,
-  Globe, Music, AlertCircle, ArrowLeft
+  ChevronDown, FileText, Download, Edit, 
+  Check, Plus, Trash2, Eye, Zap, Sparkles, ArrowRight,
+  CheckCircle, Briefcase, BookOpen, Code, Award,
+  Globe, ArrowLeft, Loader2, Info
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/utils/apiServices";
 import { generatePDF, generateDOCX } from "@/utils/resumeDownload";
-import ResumeRenderer from "./ResumeRenderer";
 import Image from "next/image";
+import ResumePreview from "./ResumePreview";
 
 // ============================================================
 // INTERFACES
@@ -176,7 +175,7 @@ function StepIndicator({ currentStep, onBack }: { currentStep: number; onBack?: 
   );
 }
 
-function TemplateGallery({ onSelect }: { onSelect: (id: string) => void }) {
+function TemplateGallery({ onSelect, isLoading }: { onSelect: (id: string) => void; isLoading: boolean }) {
   return (
     <div className="space-y-3">
       <div className="text-center mb-6">
@@ -189,8 +188,8 @@ function TemplateGallery({ onSelect }: { onSelect: (id: string) => void }) {
           return (
             <div
               key={template.id}
-              onClick={() => onSelect(template.id)}
-              className="group cursor-pointer"
+              onClick={() => !isLoading && onSelect(template.id)}
+              className={`group cursor-pointer ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
             >
               <div className="rounded-xl overflow-hidden border-2 border-gray-200 hover:border-indigo-600 transition-all duration-300 hover:shadow-xl transform hover:scale-105 bg-white">
                 {/* Image Preview */}
@@ -210,9 +209,21 @@ function TemplateGallery({ onSelect }: { onSelect: (id: string) => void }) {
                   <h3 className="font-bold text-gray-900 text-base mb-0.5">{template.name}</h3>
                   <p className="text-xs text-gray-600 mb-3">{template.description}</p>
                   
-                  <button className="w-full py-2 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold text-sm hover:from-indigo-700 hover:to-purple-700 transition-all hover:shadow-lg flex items-center justify-center gap-2">
-                    Choose Template
-                    <ArrowRight className="w-4 h-4" />
+                  <button 
+                    className="w-full py-2 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold text-sm hover:from-indigo-700 hover:to-purple-700 transition-all hover:shadow-lg flex items-center justify-center gap-2"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        Choose Template
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -508,7 +519,7 @@ function ResumeForm({ data, onDataChange }: { data: ResumeData; onDataChange: (d
           <input
             type="text"
             placeholder="Add skills separated by commas (e.g., Python, React, AWS)"
-            defaultValue={data.skills.join(", ")}
+            value={data.skills.join(", ")}
             onChange={(e) => onDataChange({ ...data, skills: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
@@ -577,7 +588,7 @@ function ResumeForm({ data, onDataChange }: { data: ResumeData; onDataChange: (d
         <div className="space-y-3">
           <textarea
             placeholder="Add achievements separated by new lines"
-            defaultValue={data.achievements.join("\n")}
+            value={data.achievements.join("\n")}
             onChange={(e) => onDataChange({ ...data, achievements: e.target.value.split("\n").filter(Boolean) })}
             rows={4}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -632,7 +643,6 @@ function ResumeForm({ data, onDataChange }: { data: ResumeData; onDataChange: (d
   );
 }
 
-// In the SuccessScreen component, remove the hidden preview div
 function SuccessScreen({ resumeId, onEdit, onDownloadPDF, onDownloadDOCX, loading, onBack }: { 
   resumeId: string | null; 
   onEdit: () => void;
@@ -713,77 +723,54 @@ function SuccessScreen({ resumeId, onEdit, onDownloadPDF, onDownloadDOCX, loadin
 }
 
 // ============================================================
-// Selected Template Card Component - Shows below the preview image
+// Template Preview Component - Shows live resume preview
 // ============================================================
 
-function SelectedTemplateCard({ template, onChange }: { template: string; onChange: () => void }) {
-  const templateInfo = TEMPLATES.find(t => t.id === template);
-
-  return (
-    <div className="mt-4 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative w-12 h-12 rounded-lg overflow-hidden border-2 border-indigo-200 flex-shrink-0">
-            <Image
-              src={templateInfo?.image || ""}
-              alt={templateInfo?.name || ""}
-              fill
-              className="object-cover"
-            />
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 font-medium">Selected Template</p>
-            <h3 className="text-lg font-bold text-gray-900">
-              {templateInfo?.name}
-            </h3>
-            <p className="text-sm text-gray-600 mt-0.5">
-              {templateInfo?.description}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onChange}
-          className="text-sm text-indigo-600 font-semibold hover:text-indigo-800 transition-colors flex items-center gap-1 bg-white px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all"
-        >
-          <Edit className="w-4 h-4" />
-          Change Template
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// Template Preview Component - Shows on the right side of form
-// ============================================================
-
-function TemplatePreview({ template, onChangeTemplate }: { template: string; onChangeTemplate: () => void }) {
-  const templateInfo = TEMPLATES.find(t => t.id === template);
-  
-  if (!templateInfo) return null;
-  
+function TemplatePreview({ template, data, onChangeTemplate }: { template: string; data: ResumeData; onChangeTemplate: () => void }) {
   return (
     <div className="sticky top-8">
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-lg">
-        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
-          <h3 className="font-bold text-gray-900">Template Preview</h3>
-          <p className="text-xs text-gray-500">Selected: {templateInfo.name}</p>
+        <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50 flex justify-between items-center">
+          <div>
+            <h3 className="font-bold text-gray-900">Live Preview</h3>
+            <p className="text-xs text-gray-500">Your resume updates in real-time</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200">
+              <Eye className="w-3 h-3 mr-1" />
+              Preview
+            </Badge>
+          </div>
         </div>
-        <div className="relative w-full h-[500px] bg-gray-100">
-          <Image
-            src={templateInfo.image}
-            alt={templateInfo.name}
-            fill
-            className="object-contain object-top"
-            sizes="(max-width: 768px) 100vw, 50vw"
-            priority
-          />
+        
+        {/* Live Resume Preview */}
+        <div className="p-4 bg-gray-50 max-h-[600px] overflow-y-auto">
+          <ResumePreview data={data} template={template} />
         </div>
-        {/* Selected Template Card - Now below the image with working change button */}
-        <SelectedTemplateCard 
-          template={template} 
-          onChange={onChangeTemplate}
-        />
+        
+        {/* Template Info Card with Edit Button */}
+        <div className="p-4 border-t border-gray-200 bg-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <FileText className="w-5 h-5 text-indigo-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium">Template</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {TEMPLATES.find(t => t.id === template)?.name || template}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onChangeTemplate}
+              className="text-sm text-indigo-600 font-semibold hover:text-indigo-800 transition-colors flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-lg hover:bg-indigo-100"
+            >
+              <Edit className="w-4 h-4" />
+              Change
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -800,9 +787,59 @@ export default function ResumeBuilder() {
   const [loading, setLoading] = useState(false);
   const [resumeId, setResumeId] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isLoadingUserData, setIsLoadingUserData] = useState(false);
+  const [dataSource, setDataSource] = useState<string>("");
 
-  const handleSelectTemplate = (templateId: string) => {
+  // Function to fetch user data from /api/settings/me
+  const fetchUserData = async () => {
+    setIsLoadingUserData(true);
+    try {
+      const response = await api.get("/api/settings/me");
+      
+      // Check if response is successful and has data
+      if (response && response.success && response.data) {
+        const userData = response.data;
+        
+        // Map the response data to resume format
+        const mappedData: ResumeData = {
+          personal: {
+            // Get name from account object
+            fullName: userData.account?.name || "",
+            // Get email from account object
+            email: userData.account?.email || "",
+            // Phone - not in this response, leave empty
+            phone: "",
+            // Location - not in this response, leave empty
+            location: "",
+            // Summary - use careerGoal from preferences as summary
+            summary: userData.preferences?.careerGoal || "",
+          },
+          education: [],
+          experience: [],
+          projects: [],
+          skills: [],
+          certifications: [],
+          achievements: [],
+          languages: [],
+        };
+        
+        setResumeData(mappedData);
+        setDataSource("Your Profile");
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      // Silently fail - user can still fill the form manually
+    } finally {
+      setIsLoadingUserData(false);
+    }
+  };
+
+  const handleSelectTemplate = async (templateId: string) => {
     setSelectedTemplate(templateId);
+    
+    // Fetch user data when template is selected
+    await fetchUserData();
+    
     setStep(2);
   };
 
@@ -939,13 +976,21 @@ export default function ResumeBuilder() {
 
   return (
     <div className="space-y-8">
+      {/* Data Source Indicator */}
+      {dataSource && step === 2 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700 flex items-center gap-2">
+          <Info className="w-4 h-4" />
+          <span>Your resume has been pre-filled with data from <strong>{dataSource}</strong>. You can edit any information below.</span>
+        </div>
+      )}
+
       {/* Step Indicator with Back Button */}
       <StepIndicator currentStep={step - 1} onBack={step > 1 ? handleBack : undefined} />
 
       {/* Step 1: Template Selection */}
       {step === 1 && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <TemplateGallery onSelect={handleSelectTemplate} />
+          <TemplateGallery onSelect={handleSelectTemplate} isLoading={isLoadingUserData} />
         </div>
       )}
 
@@ -954,45 +999,57 @@ export default function ResumeBuilder() {
         <div className="grid lg:grid-cols-2 gap-8 animate-in fade-in duration-500">
           {/* Left: Form */}
           <div className="space-y-4">
-            <ResumeForm data={resumeData} onDataChange={setResumeData} />
-            
-            <div className="flex gap-3 pt-4">
-              <button
-                onClick={handleCreateResume}
-                disabled={loading}
-                className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    {isEditMode ? "Updating..." : "Creating..."}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4" />
-                    {isEditMode ? "Update Resume" : "Create Resume"}
-                  </>
-                )}
-              </button>
-            </div>
+            {isLoadingUserData ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-3" />
+                  <p className="text-gray-600">Loading your profile data...</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <ResumeForm data={resumeData} onDataChange={setResumeData} />
+                
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={handleCreateResume}
+                    disabled={loading}
+                    className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        {isEditMode ? "Updating..." : "Creating..."}
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        {isEditMode ? "Update Resume" : "Create Resume"}
+                      </>
+                    )}
+                  </button>
+                </div>
 
-            {/* Delete button when in edit mode */}
-            {isEditMode && resumeId && (
-              <button
-                onClick={handleDeleteResume}
-                disabled={loading}
-                className="w-full py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete Resume
-              </button>
+                {/* Delete button when in edit mode */}
+                {isEditMode && resumeId && (
+                  <button
+                    onClick={handleDeleteResume}
+                    disabled={loading}
+                    className="w-full py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Resume
+                  </button>
+                )}
+              </>
             )}
           </div>
 
-          {/* Right: Template Preview Image with Selected Template Card below */}
+          {/* Right: Live Resume Preview */}
           <div>
             <TemplatePreview 
               template={selectedTemplate} 
+              data={resumeData}
               onChangeTemplate={handleChangeTemplate}
             />
           </div>

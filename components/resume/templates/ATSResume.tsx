@@ -56,14 +56,14 @@ export default function ATSResume({ data }: { data: ResumeData }) {
     <div className="bg-white min-h-screen p-8" style={{ fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif", maxWidth: "850px", margin: "0 auto" }}>
       {/* Header Section */}
       <div className="text-center mb-6">
-        <h1 className="text-4xl font-bold text-blue-700 uppercase tracking-wider mb-1">
+        <h1 className="text-4xl font-bold text-black uppercase tracking-wider mb-1">
           {data.personal.fullName || "HERMAN WALTON"}
         </h1>
-        <h2 className="text-base font-semibold text-blue-600 mb-3">
+        <h2 className="text-base font-semibold text-black mb-3">
           FINANCIAL ANALYST
         </h2>
         
-        <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-700">
+        <div className="flex flex-wrap justify-center gap-4 text-sm text-black">
           {data.personal.location && (
             <span>{data.personal.location}</span>
           )}
@@ -79,10 +79,10 @@ export default function ATSResume({ data }: { data: ResumeData }) {
       {/* Summary / Professional Summary */}
       {data.personal.summary && (
         <section className="mb-6">
-          <h2 className="text-base font-bold text-blue-700 border-b-2 border-blue-700 pb-1 mb-3 uppercase tracking-wide">
+          <h2 className="text-base font-bold text-black border-b-2 border-black pb-1 mb-3 uppercase tracking-wide">
             Summary
           </h2>
-          <p className="text-gray-800 leading-relaxed text-sm">
+          <p className="text-black leading-relaxed text-sm">
             {data.personal.summary}
           </p>
         </section>
@@ -91,7 +91,7 @@ export default function ATSResume({ data }: { data: ResumeData }) {
       {/* Professional Experience */}
       {data.experience.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-base font-bold text-blue-700 border-b-2 border-blue-700 pb-1 mb-3 uppercase tracking-wide">
+          <h2 className="text-base font-bold text-black border-b-2 border-black pb-1 mb-3 uppercase tracking-wide">
             Professional Experience
           </h2>
           <div className="space-y-4">
@@ -100,21 +100,21 @@ export default function ATSResume({ data }: { data: ResumeData }) {
               return (
                 <div key={exp.id}>
                   <div className="flex justify-between items-baseline mb-0.5">
-                    <h3 className="font-bold text-gray-900 text-sm">
+                    <h3 className="font-bold text-black text-sm">
                       {exp.position}, <span className="font-semibold">{exp.company}</span>
                     </h3>
-                    <span className="text-xs text-gray-600 font-medium">{exp.duration}</span>
+                    <span className="text-xs text-black font-medium">{exp.duration}</span>
                   </div>
                   {bulletPoints.length > 0 ? (
-                    <ul className="list-disc list-inside text-gray-800 text-sm leading-relaxed space-y-0.5 ml-2">
+                    <ul className="list-disc list-inside text-black text-sm leading-relaxed space-y-0.5 ml-2">
                       {bulletPoints.map((point, i) => (
-                        <li key={i} className="text-sm">
+                        <li key={i} className="text-sm text-black">
                           {point.trim()}.
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-gray-800 text-sm leading-relaxed">{exp.description}</p>
+                    <p className="text-black text-sm leading-relaxed">{exp.description}</p>
                   )}
                 </div>
               );
@@ -126,20 +126,20 @@ export default function ATSResume({ data }: { data: ResumeData }) {
       {/* Education */}
       {data.education.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-base font-bold text-blue-700 border-b-2 border-blue-700 pb-1 mb-3 uppercase tracking-wide">
+          <h2 className="text-base font-bold text-black border-b-2 border-black pb-1 mb-3 uppercase tracking-wide">
             Education
           </h2>
           <div className="space-y-3">
             {data.education.map((edu) => (
               <div key={edu.id}>
                 <div className="flex justify-between items-baseline mb-0.5">
-                  <h3 className="font-bold text-gray-900 text-sm">
+                  <h3 className="font-bold text-black text-sm">
                     {edu.degree}
                     {edu.field && ` in ${edu.field}`}
                   </h3>
-                  <span className="text-xs text-gray-600 font-medium">{edu.year}</span>
+                  <span className="text-xs text-black font-medium">{edu.year}</span>
                 </div>
-                <p className="text-gray-800 text-sm">{edu.school}</p>
+                <p className="text-black text-sm">{edu.school}</p>
               </div>
             ))}
           </div>
@@ -149,13 +149,13 @@ export default function ATSResume({ data }: { data: ResumeData }) {
       {/* Technical Skills */}
       {data.skills.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-base font-bold text-blue-700 border-b-2 border-blue-700 pb-1 mb-3 uppercase tracking-wide">
+          <h2 className="text-base font-bold text-black border-b-2 border-black pb-1 mb-3 uppercase tracking-wide">
             Technical Skills
           </h2>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm text-gray-800">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm text-black">
             {data.skills.map((skill, index) => (
-              <div key={index} className="flex items-center">
-                <span className="inline-block w-1.5 h-1.5 bg-blue-700 rounded-full mr-2"></span>
+              <div key={index} className="flex items-center text-black">
+                <span className="inline-block w-1.5 h-1.5 bg-black rounded-full mr-2"></span>
                 {skill}
               </div>
             ))}
@@ -166,16 +166,16 @@ export default function ATSResume({ data }: { data: ResumeData }) {
       {/* Projects */}
       {data.projects.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-base font-bold text-blue-700 border-b-2 border-blue-700 pb-1 mb-3 uppercase tracking-wide">
+          <h2 className="text-base font-bold text-black border-b-2 border-black pb-1 mb-3 uppercase tracking-wide">
             Projects
           </h2>
           <div className="space-y-3">
             {data.projects.map((proj) => (
               <div key={proj.id}>
-                <h3 className="font-bold text-gray-900 text-sm">{proj.title}</h3>
-                <p className="text-gray-800 text-sm leading-relaxed">{proj.description}</p>
+                <h3 className="font-bold text-black text-sm">{proj.title}</h3>
+                <p className="text-black text-sm leading-relaxed">{proj.description}</p>
                 {proj.technologies && (
-                  <p className="text-gray-700 text-xs mt-0.5">
+                  <p className="text-black text-xs mt-0.5">
                     <span className="font-semibold">Technologies:</span> {proj.technologies}
                   </p>
                 )}
@@ -188,15 +188,15 @@ export default function ATSResume({ data }: { data: ResumeData }) {
       {/* Certifications */}
       {data.certifications.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-base font-bold text-blue-700 border-b-2 border-blue-700 pb-1 mb-3 uppercase tracking-wide">
+          <h2 className="text-base font-bold text-black border-b-2 border-black pb-1 mb-3 uppercase tracking-wide">
             Certifications
           </h2>
-          <div className="space-y-1 text-sm text-gray-800">
+          <div className="space-y-1 text-sm text-black">
             {data.certifications.map((cert) => (
               <div key={cert.id}>
-                <span className="font-semibold">{cert.name}</span>
-                {cert.issuer && <span> - {cert.issuer}</span>}
-                {cert.date && <span className="text-gray-600 text-xs ml-2">({cert.date})</span>}
+                <span className="font-semibold text-black">{cert.name}</span>
+                {cert.issuer && <span className="text-black"> - {cert.issuer}</span>}
+                {cert.date && <span className="text-black text-xs ml-2">({cert.date})</span>}
               </div>
             ))}
           </div>
@@ -206,13 +206,13 @@ export default function ATSResume({ data }: { data: ResumeData }) {
       {/* Languages */}
       {data.languages.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-base font-bold text-blue-700 border-b-2 border-blue-700 pb-1 mb-3 uppercase tracking-wide">
+          <h2 className="text-base font-bold text-black border-b-2 border-black pb-1 mb-3 uppercase tracking-wide">
             Languages
           </h2>
-          <div className="flex flex-wrap gap-4 text-sm text-gray-800">
+          <div className="flex flex-wrap gap-4 text-sm text-black">
             {data.languages.map((lang) => (
-              <span key={lang.id}>
-                {lang.language} <span className="text-gray-600">({lang.proficiency})</span>
+              <span key={lang.id} className="text-black">
+                {lang.language} <span className="text-black">({lang.proficiency})</span>
               </span>
             ))}
           </div>
@@ -222,12 +222,12 @@ export default function ATSResume({ data }: { data: ResumeData }) {
       {/* Achievements / Additional Information */}
       {data.achievements.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-base font-bold text-blue-700 border-b-2 border-blue-700 pb-1 mb-3 uppercase tracking-wide">
+          <h2 className="text-base font-bold text-black border-b-2 border-black pb-1 mb-3 uppercase tracking-wide">
             Additional Information
           </h2>
-          <ul className="list-disc list-inside text-sm text-gray-800 space-y-0.5 ml-2">
+          <ul className="list-disc list-inside text-sm text-black space-y-0.5 ml-2">
             {data.achievements.map((achievement, index) => (
-              <li key={index}>{achievement}</li>
+              <li key={index} className="text-black">{achievement}</li>
             ))}
           </ul>
         </section>

@@ -14,9 +14,11 @@ import {
   ChevronRight,
   Star,
   Clock,
-  User,
-  ZoomIn,
-  Loader2
+  Loader2,
+  Shield,
+  Zap,
+  Award,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -39,11 +41,11 @@ interface HeadshotResult {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const STYLE = "Professional"; // Fixed style - only Professional
 
 export default function HeadshotPage() {
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string>("");
-  const [style, setStyle] = useState("Professional");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<HeadshotResult | null>(null);
   const [error, setError] = useState("");
@@ -54,16 +56,6 @@ export default function HeadshotPage() {
   const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
   const [hoveredImage, setHoveredImage] = useState<number | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>("");
-
-  // Available styles
-  const STYLES = [
-    { name: "Professional", icon: "💼", description: "Corporate and business ready" },
-    { name: "Corporate", icon: "🏢", description: "Executive presence" },
-    { name: "LinkedIn", icon: "🔗", description: "Optimized for LinkedIn" },
-    { name: "Student", icon: "🎓", description: "Fresh and approachable" },
-    { name: "Creative", icon: "🎨", description: "Artistic and unique" },
-    { name: "Casual", icon: "👕", description: "Relaxed and natural" },
-  ];
 
   // Fetch history on page load (GET request)
   useEffect(() => {
@@ -148,27 +140,42 @@ export default function HeadshotPage() {
     
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith("image/")) {
-      setImage(file);
-      setPreview(URL.createObjectURL(file));
-      setError("");
-      setQuotaError(null);
+      validateAndSetImage(file);
     } else {
       setError("Please upload a valid image file.");
     }
   };
 
+  const validateAndSetImage = (file: File) => {
+    // Validate file size (max 10 MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Maximum image size is 10 MB");
+      return;
+    }
+
+    // Validate file type
+    const validTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/jpg",
+      "image/webp",
+    ];
+
+    if (!validTypes.includes(file.type)) {
+      toast.error("Please upload JPG, PNG or WEBP image.");
+      return;
+    }
+
+    setImage(file);
+    setPreview(URL.createObjectURL(file));
+    setError("");
+    setQuotaError(null);
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    if (file.type.startsWith("image/")) {
-      setImage(file);
-      setPreview(URL.createObjectURL(file));
-      setError("");
-      setQuotaError(null);
-    } else {
-      setError("Please upload a valid image file.");
-    }
+    validateAndSetImage(file);
   };
 
   const removeImage = () => {
@@ -198,7 +205,7 @@ export default function HeadshotPage() {
 
       const formData = new FormData();
       formData.append("image", image);
-      formData.append("style", style);
+      formData.append("style", STYLE); // Always use "Professional"
 
       const response = await fetch(`${API_URL}/api/headshot`, {
         method: "POST",
@@ -212,10 +219,8 @@ export default function HeadshotPage() {
 
       if (data.success) {
         setResult(data.data);
-        toast.success("Headshots generated successfully!");
+        toast.success("Professional headshot generated successfully!");
         await fetchHeadshotHistory();
-        // Don't remove the image - keep it in the selected image box
-        // removeImage(); // Removed this line
       } else {
         // Check if it's a quota/rate limit error (429)
         if (response.status === 429 || data.message?.toLowerCase().includes('quota') || data.message?.toLowerCase().includes('rate limit')) {
@@ -259,10 +264,10 @@ export default function HeadshotPage() {
 
   const loadHistoryItem = (item: HeadshotResult) => {
     setResult(item);
-    toast.info(`Loaded ${item.style_used || "headshot"} style`);
+    toast.info(`Loaded ${item.style_used || "Professional"} headshot`);
   };
 
-  const downloadImage = async (imageUrl: string, index: number, styleName: string) => {
+  const downloadImage = async (imageUrl: string, index: number) => {
     try {
       setDownloadingIndex(index);
       const response = await fetch(imageUrl);
@@ -270,7 +275,7 @@ export default function HeadshotPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-      a.download = `headshot_${styleName.toLowerCase()}_${timestamp}.png`;
+      a.download = `professional_headshot_${timestamp}.png`;
       document.body.appendChild(a);
       a.href = url;
       a.click();
@@ -321,19 +326,33 @@ export default function HeadshotPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className="min-h-screen ">
       <div className="p-6 max-w-7xl mx-auto">
 
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md">
-              <Camera className="w-6 h-6 text-white" />
+          <div className="flex items-center gap-4 mb-2">
+            <div className="p-3 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl shadow-lg shadow-indigo-200/50">
+              <Camera className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">AI Headshot Generator</h1>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                AI Headshot Generator
+              </h1>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-0">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Professional
+                </Badge>
+                <Badge variant="outline" className="border-indigo-200 text-indigo-600">
+                  <Shield className="w-3 h-3 mr-1" />
+                  AI Powered
+                </Badge>
+              </div>
+            </div>
           </div>
-          <p className="text-gray-500 ml-12">
-            Upload a selfie and let AI generate professional headshots in your preferred style
+          <p className="text-gray-600 ml-[60px] max-w-2xl">
+            Upload your photo and generate a professional AI headshot suitable for LinkedIn, resumes, and job applications.
           </p>
         </div>
 
@@ -342,10 +361,12 @@ export default function HeadshotPage() {
           {/* Left Column - Upload & Settings */}
           <div className="space-y-6">
             {/* Upload Card */}
-            <Card className="border-gray-100 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Upload className="w-5 h-5 text-indigo-600" />
+            <Card className="border-0 shadow-xl shadow-indigo-100/50 bg-white/80 backdrop-blur-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-gray-800">
+                  <div className="p-2 bg-indigo-100 rounded-lg">
+                    <Upload className="w-5 h-5 text-indigo-600" />
+                  </div>
                   Upload Your Photo
                 </CardTitle>
                 <CardDescription>
@@ -359,25 +380,25 @@ export default function HeadshotPage() {
                     onDragLeave={handleDrag}
                     onDragOver={handleDrag}
                     onDrop={handleDrop}
-                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
+                    className={`border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer ${
                       dragActive
-                        ? "border-indigo-400 bg-indigo-50"
-                        : "border-gray-300 hover:border-indigo-300 hover:bg-indigo-50/50"
+                        ? "border-indigo-400 bg-indigo-50/50 shadow-lg shadow-indigo-100"
+                        : "border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30"
                     }`}
                   >
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png,image/jpg,image/webp"
                       onChange={handleImageChange}
                       className="hidden"
                       id="image-upload"
                     />
                     <label htmlFor="image-upload" className="cursor-pointer flex flex-col items-center gap-3">
-                      <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center">
-                        <Upload className="w-8 h-8 text-indigo-600" />
+                      <div className="w-20 h-20 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-2xl flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <Upload className="w-10 h-10 text-indigo-600" />
                       </div>
                       <div>
-                        <p className="text-gray-700 font-medium">
+                        <p className="text-gray-700 font-semibold text-lg">
                           Click or drag & drop to upload
                         </p>
                         <p className="text-sm text-gray-400 mt-1">
@@ -389,41 +410,75 @@ export default function HeadshotPage() {
                 )}
 
                 {preview && (
-                  <div className="space-y-3">
-                    <div className="relative inline-block">
+                  <div className="space-y-3 mt-2">
+                    <div className="relative inline-block group">
                       <img
                         referrerPolicy="no-referrer"
                         src={preview}
                         alt="Preview"
-                        className="w-40 h-40 object-cover rounded-xl border-2 border-indigo-200 shadow-lg"
+                        className="w-48 h-48 object-cover rounded-2xl border-2 border-indigo-200 shadow-lg shadow-indigo-100/50 group-hover:border-indigo-400 transition-all"
                       />
                       <button
                         onClick={removeImage}
-                        className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-md"
+                        className="absolute -top-2 -right-2 p-1.5 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-full hover:scale-110 transition-all shadow-md"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
-                    <p className="text-sm text-green-600 flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4" />
+                    <p className="text-sm text-emerald-600 flex items-center gap-2 font-medium">
+                      <CheckCircle className="w-5 h-5" />
                       Photo selected successfully!
                     </p>
                   </div>
                 )}
 
+                {/* Upload Instructions */}
+                <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl">
+                  <p className="text-xs text-blue-700 font-semibold mb-2 flex items-center gap-2">
+                    <Zap className="w-4 h-4" />
+                    For best results:
+                  </p>
+                  <div className="grid grid-cols-2 gap-1 text-xs text-blue-600">
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-3 h-3 text-blue-500" />
+                      <span>One person only</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-3 h-3 text-blue-500" />
+                      <span>Face clearly visible</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-3 h-3 text-blue-500" />
+                      <span>No sunglasses</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-3 h-3 text-blue-500" />
+                      <span>Good lighting</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-3 h-3 text-blue-500" />
+                      <span>Neutral background</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <CheckCircle className="w-3 h-3 text-blue-500" />
+                      <span>JPG or PNG, max 10 MB</span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Regular Error Message */}
                 {error && !quotaError && (
-                  <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-red-500" />
-                    <p className="text-sm text-red-600">{error}</p>
+                  <div className="mt-4 p-4 bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-2xl flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-500" />
+                    <p className="text-sm text-red-600 font-medium">{error}</p>
                   </div>
                 )}
 
-                {/* Quota Error Message - Clean & User Friendly */}
+                {/* Quota Error Message */}
                 {quotaError && (
-                  <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="mt-4 p-5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl">
                     <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0">
+                      <div className="flex-shrink-0 p-2 bg-amber-100 rounded-xl">
                         <Clock className="w-5 h-5 text-amber-600" />
                       </div>
                       <div className="flex-1">
@@ -434,7 +489,7 @@ export default function HeadshotPage() {
                           {quotaError.message}
                         </p>
                         <p className="text-sm text-amber-700 mt-2 font-medium">
-                          Please try again in: <span className="font-mono bg-amber-100 px-2 py-0.5 rounded">{timeRemaining || "Calculating..."}</span>
+                          Please try again in: <span className="font-mono bg-amber-100 px-3 py-1 rounded-lg">{timeRemaining || "Calculating..."}</span>
                         </p>
                         <p className="text-xs text-amber-600 mt-2">
                           ⏰ Resets at midnight (12:00 AM)
@@ -446,84 +501,80 @@ export default function HeadshotPage() {
               </CardContent>
             </Card>
 
-            {/* Style Selection Card */}
-            <Card className="border-gray-100 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-indigo-600" />
-                  Select Style
-                </CardTitle>
-                <CardDescription>
-                  Choose a style that matches your professional needs
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-3">
-                  {STYLES.map((s) => (
-                    <button
-                      key={s.name}
-                      onClick={() => setStyle(s.name)}
-                      className={`p-3 rounded-xl border-2 transition-all text-left ${
-                        style === s.name
-                          ? "border-indigo-500 bg-indigo-50"
-                          : "border-gray-200 hover:border-indigo-300"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xl">{s.icon}</span>
-                        <span className="font-semibold text-gray-900">{s.name}</span>
-                        {style === s.name && (
-                          <CheckCircle className="w-4 h-4 text-indigo-600 ml-auto" />
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500">{s.description}</p>
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Generate Button */}
             <Button
               onClick={handleGenerate}
               disabled={loading || !image || !!quotaError}
-              className="w-full py-6 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-7 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-700 hover:via-purple-700 hover:to-indigo-700 text-white rounded-2xl font-semibold text-lg shadow-xl shadow-indigo-200/50 hover:shadow-2xl hover:shadow-indigo-300/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Generating...
+                  <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                  Creating your professional headshot...
                 </>
               ) : quotaError ? (
                 <>
-                  <Clock className="w-5 h-5 mr-2" />
+                  <Clock className="w-5 h-5 mr-3" />
                   Try Again Tomorrow
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-5 h-5 mr-2" />
-                  Generate Headshots
+                  <Sparkles className="w-5 h-5 mr-3 group-hover:animate-spin" />
+                  Generate Professional Headshot
                 </>
               )}
             </Button>
+
+            {/* Pro Tips */}
+            <Card className="border-0 shadow-xl shadow-amber-100/50 bg-gradient-to-br from-amber-50/80 to-orange-50/80 backdrop-blur-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-amber-700">
+                  <div className="p-2 bg-amber-100 rounded-lg">
+                    <Star className="w-5 h-5 text-amber-600" />
+                  </div>
+                  Pro Tips
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-2">
+                  {[
+                    "Upload a clear front-facing photo",
+                    "Avoid sunglasses and face masks",
+                    "Use a high-resolution image",
+                    "Neutral background gives the best results",
+                    "AI preserves your identity while improving lighting and clothing"
+                  ].map((tip, index) => (
+                    <div key={index} className="flex items-start gap-3 p-2 bg-white/50 rounded-xl hover:bg-white/80 transition-all">
+                      <div className="p-1 bg-emerald-100 rounded-full mt-0.5">
+                        <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      </div>
+                      <span className="text-sm text-amber-800 font-medium">{tip}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Right Column - Results & History */}
           <div className="space-y-6">
             {/* Results Section */}
             {result && (getGeneratedImages(result).length > 0) && (
-              <Card className="border-gray-100 shadow-lg">
+              <Card className="border-0 shadow-xl shadow-purple-100/50 bg-white/80 backdrop-blur-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-indigo-600" />
-                    Your Headshot Results
+                  <CardTitle className="flex items-center gap-2 text-gray-800">
+                    <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
+                      <Sparkles className="w-5 h-5 text-white" />
+                    </div>
+                    Your Professional Headshot
                   </CardTitle>
                   <div className="flex items-center gap-2 mt-2">
-                    <Badge className="bg-indigo-100 text-indigo-700">
-                      {result.style_used || style}
+                    <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white border-0">
+                      Professional
                     </Badge>
                     {result.created_at && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
                         {formatDate(result.created_at)}
                       </span>
                     )}
@@ -537,49 +588,50 @@ export default function HeadshotPage() {
                       {loading ? (
                         <SkeletonLoader />
                       ) : (
-                        <div className="flex flex-wrap justify-center gap-4">
+                        <div className="flex flex-wrap justify-center gap-6">
                           {getGeneratedImages(result).map((item, index) => (
                             <div 
                               key={index} 
-                              className="space-y-2 group w-[220px]"
+                              className="space-y-3 group w-[220px]"
                               onMouseEnter={() => setHoveredImage(index)}
                               onMouseLeave={() => setHoveredImage(null)}
                             >
-                              <div className="relative overflow-hidden rounded-xl">
+                              <div className="relative overflow-hidden rounded-2xl shadow-lg shadow-gray-200/50 group-hover:shadow-xl group-hover:shadow-indigo-200/50 transition-all duration-300">
                                 <img
                                   referrerPolicy="no-referrer"
                                   src={item.image_url}
-                                  alt={`AI Headshot ${index + 1}`}
-                                  className="w-full h-[260px] object-cover rounded-xl border-2 border-gray-200 group-hover:border-indigo-300 transition-all duration-300 hover:scale-[1.02]"
+                                  alt={`Professional Headshot ${index + 1}`}
+                                  className="w-full h-[280px] object-cover rounded-2xl border-2 border-gray-100 group-hover:border-indigo-300 transition-all duration-300 hover:scale-105"
                                 />
                                 {/* Overlay with actions */}
-                                <div className={`absolute inset-0 bg-black/60 transition-opacity duration-300 flex items-center justify-center gap-2 ${
+                                <div className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent transition-opacity duration-300 flex items-center justify-center ${
                                   hoveredImage === index ? 'opacity-100' : 'opacity-0'
                                 }`}>
                                   <Button
-                                    size="sm"
-                                    onClick={() => downloadImage(item.image_url, index, item.style || result.style_used || style)}
+                                    size="lg"
+                                    onClick={() => downloadImage(item.image_url, index)}
                                     disabled={downloadingIndex === index}
-                                    className="bg-white text-gray-900 hover:bg-gray-100"
+                                    className="bg-white text-gray-900 hover:bg-gray-100 rounded-xl shadow-lg hover:shadow-xl transition-all"
                                   >
                                     {downloadingIndex === index ? (
-                                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                     ) : (
-                                      <Download className="w-4 h-4 mr-1" />
+                                      <Download className="w-4 h-4 mr-2" />
                                     )}
                                     Download
                                   </Button>
                                 </div>
                               </div>
-                              <Badge variant="secondary" className="w-full justify-center">
-                                {item.style || result.style_used || style}
+                              <Badge variant="secondary" className="w-full justify-center py-2 bg-gradient-to-r from-indigo-50 to-purple-50 text-gray-700 border-0">
+                                Professional
                               </Badge>
                             </div>
                           ))}
                         </div>
                       )}
-                      <p className="text-xs text-gray-500 mt-4 text-center">
-                        ✨ AI-generated inspiration for professional headshots
+                      <p className="text-xs text-gray-400 mt-4 text-center flex items-center justify-center gap-1">
+                        <Sparkles className="w-3 h-3 text-indigo-400" />
+                        AI-generated professional headshot
                       </p>
                     </div>
                   )}
@@ -587,11 +639,13 @@ export default function HeadshotPage() {
               </Card>
             )}
 
-            {/* History Section - Improved */}
-            <Card className="border-gray-100 shadow-lg">
+            {/* History Section */}
+            <Card className="border-0 shadow-xl shadow-indigo-100/50 bg-white/80 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-indigo-600" />
+                <CardTitle className="flex items-center gap-2 text-gray-800">
+                  <div className="p-2 bg-gray-100 rounded-lg">
+                    <Clock className="w-5 h-5 text-gray-600" />
+                  </div>
                   Generation History
                 </CardTitle>
                 <CardDescription>
@@ -607,11 +661,11 @@ export default function HeadshotPage() {
                 ) : history.length === 0 ? (
                   <div className="text-center py-8">
                     <ImageIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No headshot history yet</p>
+                    <p className="text-gray-500 font-medium">No headshot history yet</p>
                     <p className="text-sm text-gray-400">Generate your first headshot above</p>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                  <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
                     {history.map((item, idx) => {
                       const generatedImages = getGeneratedImages(item);
                       const isActive = result?.id === item.id;
@@ -619,51 +673,51 @@ export default function HeadshotPage() {
                         <button
                           key={idx}
                           onClick={() => loadHistoryItem(item)}
-                          className={`w-full text-left p-3 border rounded-xl transition-all ${
+                          className={`w-full text-left p-4 border-2 rounded-2xl transition-all ${
                             isActive
-                              ? "border-indigo-400 bg-indigo-50 shadow-md"
-                              : "border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/50"
+                              ? "border-indigo-400 bg-gradient-to-r from-indigo-50 to-purple-50 shadow-md shadow-indigo-100/50"
+                              : "border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/30"
                           }`}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-4">
                             {generatedImages.length > 0 && generatedImages[0] && (
-                              <div className="relative">
+                              <div className="relative flex-shrink-0">
                                 <img
                                   referrerPolicy="no-referrer"
                                   src={generatedImages[0].image_url}
                                   alt="Thumbnail"
-                                  className="w-14 h-14 object-cover rounded-lg"
+                                  className="w-16 h-16 object-cover rounded-xl border-2 border-gray-100"
                                 />
                                 {isActive && (
                                   <div className="absolute -top-1 -right-1">
-                                    <Badge className="bg-indigo-600 text-white text-[10px] px-1">
+                                    <Badge className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[10px] px-1.5 py-0.5 border-0">
                                       Current
                                     </Badge>
                                   </div>
                                 )}
                               </div>
                             )}
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <p className="text-sm font-semibold text-gray-900">
-                                  {item.style_used || "Headshot"} Style
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-semibold text-gray-900 truncate">
+                                  Professional Headshot
                                 </p>
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-gray-500 flex-shrink-0">
                                   {formatDate(item.created_at)}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="secondary" className="text-xs">
-                                  {generatedImages.length} variation{generatedImages.length !== 1 ? 's' : ''}
+                                <Badge variant="secondary" className="text-xs bg-gray-100 border-0">
+                                  Professional
                                 </Badge>
                                 {item.id === result?.id && (
-                                  <Badge className="bg-green-100 text-green-700 text-xs">
+                                  <Badge className="bg-emerald-100 text-emerald-700 text-xs border-0">
                                     Loaded
                                   </Badge>
                                 )}
                               </div>
                             </div>
-                            <ChevronRight className={`w-4 h-4 transition-colors ${
+                            <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-colors ${
                               isActive ? "text-indigo-600" : "text-gray-400"
                             }`} />
                           </div>
@@ -672,40 +726,6 @@ export default function HeadshotPage() {
                     })}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Tips Card */}
-            <Card className="border-amber-100 bg-gradient-to-r from-amber-50 to-orange-50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-amber-700">
-                  <Star className="w-5 h-5" />
-                  Pro Tips
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-sm text-amber-800">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 text-amber-600 mt-0.5" />
-                    Use a well-lit, front-facing photo
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 text-amber-600 mt-0.5" />
-                    Avoid busy backgrounds or sunglasses
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 text-amber-600 mt-0.5" />
-                    Professional style works best for corporate jobs
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 text-amber-600 mt-0.5" />
-                    Creative style is perfect for design roles
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 text-amber-600 mt-0.5" />
-                    Results are AI-generated inspirations, not face-preserved edits
-                  </li>
-                </ul>
               </CardContent>
             </Card>
           </div>         
