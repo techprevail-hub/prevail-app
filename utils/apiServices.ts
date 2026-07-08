@@ -68,7 +68,7 @@ const refreshToken = async (): Promise<boolean> => {
   }
 };
 
-// API Service
+// API Service with proper types
 export const api = {
   async get(endpoint: string, params?: Record<string, any>) {
     try {
@@ -119,18 +119,22 @@ export const api = {
       throw error;
     }
   },
-  async post(endpoint: string, body: any, options?: { isFormData?: boolean }) {
+
+  async post(endpoint: string, body: any, options?: { isFormData?: boolean; headers?: Record<string, string> }) {
     const isFormData = options?.isFormData || body instanceof FormData;
     
     try {
       const headers = await getAuthHeaders(isFormData);
+      
+      // Merge any custom headers if provided
+      const finalHeaders = options?.headers ? { ...headers, ...options.headers } : headers;
       
       // Don't stringify FormData
       const requestBody = isFormData ? body : JSON.stringify(body);
       
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
-        headers,
+        headers: finalHeaders,
         body: requestBody,
       });
 
@@ -138,9 +142,11 @@ export const api = {
         const refreshed = await refreshToken();
         if (refreshed) {
           const newHeaders = await getAuthHeaders(isFormData);
+          const finalRetryHeaders = options?.headers ? { ...newHeaders, ...options.headers } : newHeaders;
+          
           const retryResponse = await fetch(`${API_URL}${endpoint}`, {
             method: "POST",
-            headers: newHeaders,
+            headers: finalRetryHeaders,
             body: requestBody,
           });
           const retryData = await retryResponse.json();
@@ -160,16 +166,18 @@ export const api = {
     }
   },
 
-  async put(endpoint: string, body: any, options?: { isFormData?: boolean }) {
+  async put(endpoint: string, body: any, options?: { isFormData?: boolean; headers?: Record<string, string> }) {
     const isFormData = options?.isFormData || body instanceof FormData;
     
     try {
       const headers = await getAuthHeaders(isFormData);
+      const finalHeaders = options?.headers ? { ...headers, ...options.headers } : headers;
+      
       const requestBody = isFormData ? body : JSON.stringify(body);
       
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "PUT",
-        headers,
+        headers: finalHeaders,
         body: requestBody,
       });
 
@@ -177,9 +185,11 @@ export const api = {
         const refreshed = await refreshToken();
         if (refreshed) {
           const newHeaders = await getAuthHeaders(isFormData);
+          const finalRetryHeaders = options?.headers ? { ...newHeaders, ...options.headers } : newHeaders;
+          
           const retryResponse = await fetch(`${API_URL}${endpoint}`, {
             method: "PUT",
-            headers: newHeaders,
+            headers: finalRetryHeaders,
             body: requestBody,
           });
           const retryData = await retryResponse.json();
