@@ -14,7 +14,9 @@ import {
   Trash2,
   Edit2,
   Loader2,
-  ArrowLeft
+  ArrowLeft,
+  Volume2,
+  Mic
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,6 +44,7 @@ interface InterviewSession {
   final_feedback: string | null;
   sub_type: string | null;
   answers_data: any | null;
+  interview_mode?: string; // Add interview_mode field
 }
 
 interface InterviewHistoryProps {
@@ -128,6 +131,18 @@ export default function InterviewHistoryComponent({
     return null;
   };
 
+  // Get interview mode display
+  const getInterviewModeDisplay = (session: any) => {
+    const mode = session.interview_mode || "text";
+    return mode === "voice" ? "Voice Interview" : "Text Interview";
+  };
+
+  // Get interview mode icon
+  const getInterviewModeIcon = (session: any) => {
+    const mode = session.interview_mode || "text";
+    return mode === "voice" ? <Volume2 className="w-3 h-3" /> : <MessageCircle className="w-3 h-3" />;
+  };
+
   // Handle edit for a specific question
   const handleEditQuestion = (session: any, questionIndex: number) => {
     const editItem = {
@@ -205,6 +220,8 @@ export default function InterviewHistoryComponent({
             const isExpanded = expandedSessions.has(session.id);
             const completedCount = getCompletedCount(session);
             const avgScore = getAverageScore(session);
+            const modeDisplay = getInterviewModeDisplay(session);
+            const modeIcon = getInterviewModeIcon(session);
             
             return (
               <Card key={session.id} className="border-gray-100 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
@@ -215,8 +232,9 @@ export default function InterviewHistoryComponent({
                       className="flex items-center gap-2 flex-wrap cursor-pointer flex-1"
                       onClick={() => toggleSession(session.id)}
                     >
-                      <Badge className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5">
-                        {interviewType} Interview {sessionIndex + 1}
+                      <Badge className="bg-purple-100 text-purple-700 text-[10px] px-2 py-0.5 flex items-center gap-1">
+                        {modeIcon}
+                        {modeDisplay}
                       </Badge>
                       <span className="text-[10px] text-gray-500">
                         {formatDate(session.created_at)}
@@ -288,6 +306,12 @@ export default function InterviewHistoryComponent({
                                 <Badge variant="outline" className="text-[9px] px-1.5 py-0">
                                   Q{qIndex + 1}
                                 </Badge>
+                                {session.interview_mode === "voice" && (
+                                  <Badge className="bg-blue-100 text-blue-700 text-[8px] px-1 py-0 flex items-center gap-0.5">
+                                    <Volume2 className="w-2.5 h-2.5" />
+                                    Voice
+                                  </Badge>
+                                )}
                               </div>
                               {/* Edit Button for individual question */}
                               {hasAnswer && (
