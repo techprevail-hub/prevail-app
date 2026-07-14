@@ -365,7 +365,7 @@ export default function InterviewSession({
                     ) : (
                       <ArrowRight className="w-3.5 h-3.5 mr-1.5" />
                     )}
-                    Submit Answer
+                    Submit & Next
                   </Button>
                   <Button
                     onClick={onSubmitEnd}

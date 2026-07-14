@@ -107,87 +107,102 @@ export default function InterviewPage() {
   }, [interviewType, history]);
 
   // ==========================================
-  // SPEECH RECOGNITION SETUP - COMPLETELY FIXED
+  // SPEECH RECOGNITION - FIXED
   // ==========================================
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      
-      if (SpeechRecognition) {
-        isSpeechSupported.current = true;
-        recognitionRef.current = new SpeechRecognition();
-        recognitionRef.current.continuous = true;
-        recognitionRef.current.interimResults = true;
-        recognitionRef.current.lang = "en-US";
-
-        recognitionRef.current.onresult = (event: any) => {
-          let finalTranscript = "";
-          let interimTranscript = "";
-          
-          // Collect all results
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcriptText = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-              finalTranscript += transcriptText;
-            } else {
-              interimTranscript += transcriptText;
-            }
-          }
-          
-          // If we have a final transcript, accumulate it
-          if (finalTranscript) {
-            accumulatedTranscriptRef.current += " " + finalTranscript;
-            accumulatedTranscriptRef.current = accumulatedTranscriptRef.current.trim();
-            setTranscript(accumulatedTranscriptRef.current);
-            setAnswer(accumulatedTranscriptRef.current);
-            console.log("Final transcript accumulated:", accumulatedTranscriptRef.current);
-          } else if (interimTranscript) {
-            // Show interim transcript as well
-            const currentText = accumulatedTranscriptRef.current + " " + interimTranscript;
-            setTranscript(currentText.trim());
-          }
-        };
-
-        recognitionRef.current.onerror = (event: any) => {
-          console.error("Speech recognition error:", event.error);
-          if (event.error === "not-allowed") {
-            toast.error("Please allow microphone access.");
-            setIsRecording(false);
-            isRecordingRef.current = false;
-          } else if (event.error === "no-speech") {
-            toast.info("No speech detected. Please speak into the microphone.");
-          } else if (event.error === "aborted") {
-            console.log("Recording stopped by user.");
-          }
-        };
-
-        recognitionRef.current.onend = () => {
-          console.log("Speech recognition ended.");
-          console.log("Accumulated transcript:", accumulatedTranscriptRef.current);
-          
-          // Update the transcript with whatever we have
-          if (accumulatedTranscriptRef.current) {
-            setTranscript(accumulatedTranscriptRef.current);
-            setAnswer(accumulatedTranscriptRef.current);
-          }
-          
-          // Always set recording to false when recognition ends
-          setIsRecording(false);
-          isRecordingRef.current = false;
-          
-          // Only show toast if we have transcript and it wasn't manually stopped
-          if (accumulatedTranscriptRef.current) {
-            toast.success("✅ Recording stopped. Review your transcript below.");
-          } else {
-            toast.info("No speech detected. Click 'Start Recording' to try again.");
-          }
-        };
-      } else {
-        isSpeechSupported.current = false;
-        console.warn("Speech recognition is not supported in this browser.");
-      }
+  const setupSpeechRecognition = () => {
+    if (typeof window === "undefined") return false;
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      isSpeechSupported.current = false;
+      console.warn("Speech recognition is not supported in this browser.");
+      return false;
     }
 
+    try {
+      // Clean up existing recognition
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+        recognitionRef.current = null;
+      }
+
+      isSpeechSupported.current = true;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = "en-US";
+
+      recognitionRef.current.onstart = () => {
+        console.log("Speech recognition started successfully.");
+        setIsRecording(true);
+        isRecordingRef.current = true;
+      };
+
+      recognitionRef.current.onresult = (event: any) => {
+        console.log("Speech recognition result received:", event.results.length);
+        let finalTranscript = "";
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcriptText = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcriptText;
+          }
+        }
+        
+        if (finalTranscript) {
+          accumulatedTranscriptRef.current += " " + finalTranscript;
+          accumulatedTranscriptRef.current = accumulatedTranscriptRef.current.trim();
+          setTranscript(accumulatedTranscriptRef.current);
+          setAnswer(accumulatedTranscriptRef.current);
+          console.log("Transcript updated:", accumulatedTranscriptRef.current);
+        }
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error("Speech recognition error:", event.error);
+        if (event.error === "not-allowed") {
+          toast.error("Please allow microphone access.");
+          setIsRecording(false);
+          isRecordingRef.current = false;
+        } else if (event.error === "no-speech") {
+          toast.error("No speech detected. Please speak into the microphone.");
+        }
+      };
+
+      recognitionRef.current.onend = () => {
+        console.log("Speech recognition ended.");
+        console.log("Accumulated transcript:", accumulatedTranscriptRef.current);
+        
+        if (accumulatedTranscriptRef.current) {
+          setTranscript(accumulatedTranscriptRef.current);
+          setAnswer(accumulatedTranscriptRef.current);
+          // Only show toast if we have transcript and it wasn't manually stopped
+          if (isRecordingRef.current) {
+            toast.success("✅ Recording stopped. Review your transcript below.");
+          }
+        } else {
+          // If no transcript, show a warning
+          toast.warning("No speech detected. Please try recording again.");
+        }
+        
+        setIsRecording(false);
+        isRecordingRef.current = false;
+      };
+
+      return true;
+    } catch (error) {
+      console.error("Error setting up speech recognition:", error);
+      return false;
+    }
+  };
+
+  // Initialize speech recognition on mount
+  useEffect(() => {
+    setupSpeechRecognition();
+    
     return () => {
       if (recognitionRef.current) {
         try { 
@@ -196,6 +211,27 @@ export default function InterviewPage() {
       }
     };
   }, []);
+
+  // Reset speech recognition for new recording
+  const resetSpeechRecognition = () => {
+    // Stop current recognition
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+      recognitionRef.current = null;
+    }
+    
+    // Reset refs
+    accumulatedTranscriptRef.current = "";
+    isRecordingRef.current = false;
+    setIsRecording(false);
+    setTranscript("");
+    setAnswer("");
+    
+    // Setup new recognition
+    setupSpeechRecognition();
+  };
 
   // Auto-play audio when URL changes
   useEffect(() => {
@@ -261,6 +297,11 @@ export default function InterviewPage() {
     setInterviewType(type);
     setSubType(sub);
     setInterviewMode(mode);
+
+    // Reset speech recognition for voice interview
+    if (mode === "voice") {
+      resetSpeechRecognition();
+    }
 
     try {
       setLoading(true);
@@ -330,7 +371,7 @@ export default function InterviewPage() {
   };
 
   // ==========================================
-  // VOICE RECORDING - COMPLETELY FIXED
+  // VOICE RECORDING - FIXED
   // ==========================================
   const startRecording = () => {
     if (!isSpeechSupported.current) {
@@ -373,10 +414,28 @@ export default function InterviewPage() {
         toast.error("Speech recognition is not available.");
         return;
       }
+      
+      // Ensure recognition is properly setup
+      if (!recognitionRef.current.onresult) {
+        setupSpeechRecognition();
+      }
+      
+      // Reset the flag before starting
+      isRecordingRef.current = false;
+      
+      // Start recognition
+      recognitionRef.current.start();
       setIsRecording(true);
       isRecordingRef.current = true;
-      recognitionRef.current.start();
       toast.info("🎤 Recording started. Speak your answer clearly.");
+      
+      // Auto-stop after 60 seconds of silence (optional)
+      setTimeout(() => {
+        if (isRecordingRef.current && !accumulatedTranscriptRef.current) {
+          console.log("No speech detected for 60 seconds, auto-stopping...");
+          stopRecording();
+        }
+      }, 60000);
     } catch (error) {
       console.error("Recording error:", error);
       setIsRecording(false);
@@ -385,6 +444,8 @@ export default function InterviewPage() {
         toast.info("Recording is already in progress.");
       } else {
         toast.error("Failed to start recording. Please try again.");
+        // Reset and try again
+        resetSpeechRecognition();
       }
     }
   };
@@ -634,6 +695,8 @@ export default function InterviewPage() {
     setIsPlayingAudio(false);
     setIsLoadingAudio(false);
     accumulatedTranscriptRef.current = "";
+    // Reset speech recognition for next interview
+    resetSpeechRecognition();
     setTimeout(() => {
       setShowCompletionCard(true);
       setInterviewActive(false);

@@ -131,9 +131,12 @@ export default function JobInsightsPage() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [pageLoading, setPageLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  
+  // Separate search states
+  const [searchInput, setSearchInput] = useState("");  // What user types
+  const [searchQuery, setSearchQuery] = useState("");  // What is sent to backend
+  
   const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   
   // Pagination states
@@ -145,14 +148,11 @@ export default function JobInsightsPage() {
   const jobListingsRef = useRef<HTMLDivElement>(null);
 
   // Fetch job insights from API
-  useEffect(() => {
-    fetchJobInsights(page);
-  }, [page]);
-
-  const fetchJobInsights = async (page: number) => {
+  const fetchJobInsights = async (page: number, search: string = "") => {
     try {
+      setPageLoading(true);
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/job-insights?page=${page}&limit=10`
+        `${process.env.NEXT_PUBLIC_API_URL}/api/job-insights?page=${page}&limit=10&search=${encodeURIComponent(search)}`
       );
 
       const result = await response.json();
@@ -171,55 +171,64 @@ export default function JobInsightsPage() {
     }
   };
 
-  // Filter jobs based on search and filters
+  // Initial load
+  useEffect(() => {
+    fetchJobInsights(page, searchQuery);
+  }, [page, searchQuery]);
+
+  // Handle search
+  const handleSearch = () => {
+    if (searchInput.trim()) {
+      setPage(1);
+      setSearchQuery(searchInput.trim());
+    } else {
+      setPage(1);
+      setSearchQuery("");
+    }
+  };
+
+  // Handle Enter key press
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchInput("");
+    setSearchQuery("");
+    setPage(1);
+  };
+
+  // Clear location filter
+  const clearLocationFilter = () => {
+    setSelectedLocation("all");
+  };
+
+  // Filter jobs based on location
   useEffect(() => {
     let filtered = jobs;
 
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter((job) =>
-        job.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.company?.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.location?.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        job.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Category filter
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter((job) =>
-        job.category?.tag === selectedCategory
-      );
-    }
-
     // Location filter
     if (selectedLocation !== "all") {
-      filtered = filtered.filter((job) =>
-        job.location?.display_name?.toLowerCase().includes(selectedLocation.toLowerCase())
-      );
+      filtered = filtered.filter((job) => {
+        const fullLocation = job.location?.display_name || "";
+        const city = fullLocation.split(",")[0]?.trim();
+        return city?.toLowerCase() === selectedLocation.toLowerCase();
+      });
     }
 
     setFilteredJobs(filtered);
-  }, [searchQuery, selectedCategory, selectedLocation, jobs]);
+  }, [selectedLocation, jobs]);
 
-  // Get unique categories from jobs
-  const categories = ["all", ...new Set(jobs.map((job) => job.category?.tag).filter(Boolean))];
-  
-  // Get unique locations from jobs - extract only city names without "India"
+  // Get all unique locations from jobs - only Indian cities
   const locations = ["all", ...new Set(jobs.map((job) => {
     const fullLocation = job.location?.display_name || "";
-    // Split by comma and take the first part (city)
     const city = fullLocation.split(",")[0]?.trim();
-    // Filter out any location that contains "India" or is empty
     if (!city || city.toLowerCase().includes("india")) return null;
     return city;
   }).filter(Boolean))];
-
-  // Format category names for display
-  const formatCategoryName = (cat: string) => {
-    if (cat === "all") return "All Categories";
-    return cat.replace(/-/g, " ").toUpperCase();
-  };
 
   // Calculate stats from real data
   const totalJobs = totalJobsCount;
@@ -317,7 +326,6 @@ export default function JobInsightsPage() {
   // Handle page change - scroll to job listings section
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
-      setPageLoading(true);
       setPage(newPage);
       setTimeout(() => {
         if (jobListingsRef.current) {
@@ -568,7 +576,7 @@ export default function JobInsightsPage() {
             <section>
               <SectionHeader title="Recent Job Listings" subtitle="Latest opportunities from the market" icon={Users} />
               
-              {/* Search & Filters - Using CustomDropdown components */}
+              {/* Search & Filters */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-4">
                 <div className="flex flex-col md:flex-row gap-3">
                   {/* Search */}
@@ -576,45 +584,31 @@ export default function JobInsightsPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="text"
-                      placeholder="Search jobs, companies, or locations..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-sm"
+                      placeholder="Search by role (e.g. Frontend Developer, UI/UX Designer, Python Developer...)"
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      className="w-full pl-10 pr-36 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-sm"
                     />
-                    {searchQuery && (
+                    {searchInput && (
                       <button
-                        onClick={() => setSearchQuery("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        onClick={clearSearch}
+                        className="absolute right-[78px] top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     )}
+                    {/* Search Button */}
+                    <button
+                      onClick={handleSearch}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+                    >
+                      Search
+                    </button>
                   </div>
 
-                  {/* Category Filter - Custom Dropdown */}
-                  <div className="min-w-[160px]">
-                    <CustomDropdown
-                      options={categories.filter(c => c !== "all").map(c => formatCategoryName(c))}
-                      value={selectedCategory === "all" ? "all" : formatCategoryName(selectedCategory)}
-                      onChange={(value) => {
-                        if (value === "all") {
-                          setSelectedCategory("all");
-                        } else {
-                          // Find the original category key
-                          const originalKey = categories.find(
-                            c => formatCategoryName(c) === value
-                          );
-                          setSelectedCategory(originalKey || "all");
-                        }
-                      }}
-                      placeholder="All Categories"
-                      label="Category"
-                      itemsPerPage={6}
-                    />
-                  </div>
-
-                  {/* Location Filter - Custom Dropdown */}
-                  <div className="min-w-[160px]">
+                  {/* Location Filter with Clear Button */}
+                  <div className="min-w-[180px] relative">
                     <CustomDropdown
                       options={locations.filter(l => l !== "all")}
                       value={selectedLocation}
@@ -623,6 +617,15 @@ export default function JobInsightsPage() {
                       label="Location"
                       itemsPerPage={6}
                     />
+                    {selectedLocation !== "all" && (
+                      <button
+                        onClick={clearLocationFilter}
+                        className="absolute -top-1 -right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-sm"
+                        title="Clear location filter"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
 
                   {/* Results count */}
