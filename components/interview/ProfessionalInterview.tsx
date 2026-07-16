@@ -183,7 +183,6 @@ export default function ProfessionalInterview({
     try {
       // Get the current transcript and messages
       const messages = videoPanelRef.current?.getMessages() || [];
-      const currentQuestion = videoPanelRef.current?.getCurrentQuestion() || "";
       
       // Build conversation data
       const conversation = messages.map((msg) => ({
@@ -269,16 +268,14 @@ export default function ProfessionalInterview({
   };
 
   // ============================================================
-  // INTERVIEW COMPLETE HANDLERS
+  // INTERVIEW COMPLETE HANDLER - Called when DIDAvatar finishes
   // ============================================================
 
-  const handleInterviewComplete = async () => {
-    // Save the transcript from the avatar
-    const messages = videoPanelRef.current?.getMessages() || [];
-    setTranscript(messages);
-    
-    // Complete the interview via API
-    await completeInterview(messages);
+  const handleInterviewFinished = async () => {
+    console.log("🎯 Interview finished by avatar");
+    // Don't auto-complete here - let the flow handle it
+    // The avatar's onInterviewFinished callback triggers this
+    // but we want to wait for the user to explicitly end or timer to end
   };
 
   // ============================================================
@@ -578,7 +575,6 @@ export default function ProfessionalInterview({
         <VideoInterviewPanel
           ref={videoPanelRef}
           isLoading={isLoading}
-          onInterviewComplete={handleInterviewComplete}
         />
       </div>
 
