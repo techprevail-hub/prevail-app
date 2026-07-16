@@ -6,7 +6,9 @@ import {
   Save, 
   X, 
   ArrowLeft,
-  CheckCircle
+  CheckCircle,
+  Video,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -15,6 +17,7 @@ import { Modal } from "@/components/ui/modal";
 import InterviewSelection from "@/components/interview/InterviewSelection";
 import InterviewSession from "@/components/interview/InterviewSession";
 import InterviewResult from "@/components/interview/InterviewResult";
+import ProfessionalInterview from "@/components/interview/ProfessionalInterview";
 import InterviewHistoryComponent from "@/components/InterviewHistory";
 
 // Type declaration for Speech Recognition
@@ -77,6 +80,9 @@ export default function InterviewPage() {
   const [finalScore, setFinalScore] = useState<number | null>(null);
   const [finalFeedback, setFinalFeedback] = useState("");
 
+  // Video Interview States
+  const [videoInterviewActive, setVideoInterviewActive] = useState(false);
+
   // History States
   const [history, setHistory] = useState<InterviewHistory[]>([]);
   const [filteredHistory, setFilteredHistory] = useState<InterviewHistory[]>([]);
@@ -121,7 +127,6 @@ export default function InterviewPage() {
     }
 
     try {
-      // Clean up existing recognition
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -179,12 +184,10 @@ export default function InterviewPage() {
         if (accumulatedTranscriptRef.current) {
           setTranscript(accumulatedTranscriptRef.current);
           setAnswer(accumulatedTranscriptRef.current);
-          // Only show toast if we have transcript and it wasn't manually stopped
           if (isRecordingRef.current) {
             toast.success("✅ Recording stopped. Review your transcript below.");
           }
         } else {
-          // If no transcript, show a warning
           toast.warning("No speech detected. Please try recording again.");
         }
         
@@ -214,7 +217,6 @@ export default function InterviewPage() {
 
   // Reset speech recognition for new recording
   const resetSpeechRecognition = () => {
-    // Stop current recognition
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -222,14 +224,12 @@ export default function InterviewPage() {
       recognitionRef.current = null;
     }
     
-    // Reset refs
     accumulatedTranscriptRef.current = "";
     isRecordingRef.current = false;
     setIsRecording(false);
     setTranscript("");
     setAnswer("");
     
-    // Setup new recognition
     setupSpeechRecognition();
   };
 
@@ -291,14 +291,13 @@ export default function InterviewPage() {
   };
 
   // ==========================================
-  // START INTERVIEW
+  // START TEXT/VOICE INTERVIEW
   // ==========================================
   const handleInterviewStart = async (type: string, sub: string, mode: "text" | "voice") => {
     setInterviewType(type);
     setSubType(sub);
     setInterviewMode(mode);
 
-    // Reset speech recognition for voice interview
     if (mode === "voice") {
       resetSpeechRecognition();
     }
@@ -371,7 +370,56 @@ export default function InterviewPage() {
   };
 
   // ==========================================
-  // VOICE RECORDING - FIXED
+  // START VIDEO INTERVIEW
+  // ==========================================
+  const handleVideoInterviewStart = () => {
+    console.log("Video interview started from main page");
+    
+    // Reset old text/voice interview state before starting video interview
+    setInterviewActive(false);
+    setInterviewCompleted(false);
+    setCurrentQuestion("");
+    setFeedback("");
+    setAnswer("");
+    setSessionId(null);
+    setCurrentQuestionNum(0);
+    setFinalScore(null);
+    setFinalFeedback("");
+    setQuestionsData([]);
+    setCurrentAnswerSaved(false);
+    setAudioUrl("");
+    setVoiceText("");
+    setTranscript("");
+    setIsRecording(false);
+    isRecordingRef.current = false;
+    setIsPlayingAudio(false);
+    setIsLoadingAudio(false);
+    accumulatedTranscriptRef.current = "";
+    
+    setVideoInterviewActive(true);
+    setShowHistory(false);
+  };
+
+  const handleVideoInterviewComplete = () => {
+    setVideoInterviewActive(false);
+    
+    // Clear any lingering state
+    setCurrentQuestion("");
+    setFeedback("");
+    setAnswer("");
+    
+    fetchInterviewHistory();
+  };
+
+  const handleVideoInterviewBack = () => {
+    setVideoInterviewActive(false);
+    setCurrentQuestion("");
+    setFeedback("");
+    setAnswer("");
+  };
+
+  // ==========================================
+  // VOICE RECORDING
   // ==========================================
   const startRecording = () => {
     if (!isSpeechSupported.current) {
@@ -387,12 +435,10 @@ export default function InterviewPage() {
       return;
     }
     
-    // Clear previous transcripts
     accumulatedTranscriptRef.current = "";
     setTranscript("");
     setAnswer("");
 
-    // Check microphone permission
     if (navigator.permissions && navigator.permissions.query) {
       navigator.permissions.query({ name: 'microphone' as PermissionName })
         .then((result) => {
@@ -415,21 +461,16 @@ export default function InterviewPage() {
         return;
       }
       
-      // Ensure recognition is properly setup
       if (!recognitionRef.current.onresult) {
         setupSpeechRecognition();
       }
       
-      // Reset the flag before starting
       isRecordingRef.current = false;
-      
-      // Start recognition
       recognitionRef.current.start();
       setIsRecording(true);
       isRecordingRef.current = true;
       toast.info("🎤 Recording started. Speak your answer clearly.");
       
-      // Auto-stop after 60 seconds of silence (optional)
       setTimeout(() => {
         if (isRecordingRef.current && !accumulatedTranscriptRef.current) {
           console.log("No speech detected for 60 seconds, auto-stopping...");
@@ -444,7 +485,6 @@ export default function InterviewPage() {
         toast.info("Recording is already in progress.");
       } else {
         toast.error("Failed to start recording. Please try again.");
-        // Reset and try again
         resetSpeechRecognition();
       }
     }
@@ -457,7 +497,6 @@ export default function InterviewPage() {
         setIsRecording(false);
         isRecordingRef.current = false;
         
-        // The transcript will be set in the onend handler
         if (accumulatedTranscriptRef.current) {
           toast.success("✅ Recording stopped. Review your transcript below.");
         } else {
@@ -485,7 +524,7 @@ export default function InterviewPage() {
   };
 
   // ==========================================
-  // SAVE ANSWER AND NEXT
+  // SAVE ANSWER AND NEXT (Text/Voice)
   // ==========================================
   const saveAnswerAndNext = async () => {
     const answerToSubmit = interviewMode === "voice" ? transcript : answer;
@@ -695,7 +734,7 @@ export default function InterviewPage() {
     setIsPlayingAudio(false);
     setIsLoadingAudio(false);
     accumulatedTranscriptRef.current = "";
-    // Reset speech recognition for next interview
+    setVideoInterviewActive(false);
     resetSpeechRecognition();
     setTimeout(() => {
       setShowCompletionCard(true);
@@ -836,10 +875,19 @@ export default function InterviewPage() {
         {/* ── Main Content ── */}
         {!showHistory && (
           <>
-            {/* Selection View */}
-            {!interviewActive && !interviewCompleted && (
+            {/* Video Interview - Takes full page */}
+            {videoInterviewActive && (
+              <ProfessionalInterview
+                onComplete={handleVideoInterviewComplete}
+                onBack={handleVideoInterviewBack}
+              />
+            )}
+
+            {/* Selection View - Only shown when no interview is active */}
+            {!interviewActive && !interviewCompleted && !videoInterviewActive && (
               <InterviewSelection
                 onInterviewStart={handleInterviewStart}
+                onVideoInterviewStart={handleVideoInterviewStart}
                 loading={loading}
                 filteredHistoryLength={filteredHistory.length}
                 onViewHistory={() => setShowHistory(true)}
@@ -847,7 +895,7 @@ export default function InterviewPage() {
               />
             )}
 
-            {/* Session View */}
+            {/* Session View - Text/Voice Interview */}
             {interviewActive && (
               <InterviewSession
                 sessionId={sessionId}

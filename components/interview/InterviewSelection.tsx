@@ -20,6 +20,10 @@ import {
   MessageCircle,
   Volume2,
   Mic,
+  Video,
+  Sparkles,
+  Briefcase,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +32,7 @@ import { toast } from "sonner";
 
 interface InterviewSelectionProps {
   onInterviewStart: (type: string, subType: string, mode: "text" | "voice") => void;
+  onVideoInterviewStart: () => void;
   loading: boolean;
   filteredHistoryLength: number;
   onViewHistory: () => void;
@@ -119,6 +124,7 @@ const interviewTypes = [
 
 export default function InterviewSelection({
   onInterviewStart,
+  onVideoInterviewStart,
   loading,
   filteredHistoryLength,
   onViewHistory,
@@ -174,12 +180,18 @@ export default function InterviewSelection({
     toast.success(`${selectedSubType} selected for ${interviewType} interview`);
   };
 
-  const handleStart = () => {
+  const handleStart = (mode: "text" | "voice") => {
     if (!subType) {
       toast.error(`Please select a ${interviewType} technology/language first`);
       return;
     }
-    onInterviewStart(interviewType, subType, interviewMode);
+    onInterviewStart(interviewType, subType, mode);
+  };
+
+  // Direct call to video interview without any selection
+  const handleVideoStart = () => {
+    console.log("Video interview button clicked - calling onVideoInterviewStart");
+    onVideoInterviewStart();
   };
 
   return (
@@ -207,13 +219,18 @@ export default function InterviewSelection({
                 Practice with AI, get instant feedback, and build the confidence to ace any interview.
               </p>
               <div className="flex gap-2 flex-wrap">
+                {/* Start Video Interview Button - Main CTA */}
                 <Button
-                  onClick={handleStart}
-                  disabled={loading || !subType}
-                  className="bg-white text-purple-700 hover:bg-purple-50 shadow-lg font-semibold transition-all duration-200 text-xs px-4 py-2"
+                  onClick={handleVideoStart}
+                  disabled={loading}
+                  className="bg-white text-purple-700 hover:bg-purple-50 shadow-lg font-semibold transition-all duration-200 text-xs px-4 py-2 relative overflow-hidden group"
                 >
-                  <PlayCircle className="w-3.5 h-3.5 mr-1.5" />
-                  Start Interview
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 group-hover:translate-x-full transition-transform duration-700" />
+                  <Video className="w-3.5 h-3.5 mr-1.5" />
+                  Mock Video Interview
+                  <Badge className="ml-1.5 bg-yellow-400 text-purple-900 border-0 text-[8px] px-1.5 py-0 font-bold">
+                    NEW
+                  </Badge>
                 </Button>
                 <Button
                   onClick={onViewHistory}
@@ -243,10 +260,10 @@ export default function InterviewSelection({
         </div>
       </div>
 
-      {/* ── Interview Mode Selector ── */}
+      {/* ── Interview Mode Selector (Text & Voice only) ── */}
       <div className="mb-4">
         <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-2">
-          Interview Mode
+          Choose your interview mode and start practicing.
         </p>
         <div className="flex gap-2">
           <button
@@ -258,18 +275,18 @@ export default function InterviewSelection({
             }`}
           >
             <MessageCircle className="w-4 h-4" />
-            Text Interview
+            Text Mode 
           </button>
           <button
             onClick={() => setInterviewMode("voice")}
             className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center gap-2 ${
               interviewMode === "voice"
-                ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg"
+                ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                 : "bg-white text-gray-700 border border-gray-200 hover:shadow-md"
             }`}
           >
             <Volume2 className="w-4 h-4" />
-            Voice Interview
+            Voice Mode
           </button>
         </div>
         {interviewMode === "voice" && (
@@ -281,9 +298,9 @@ export default function InterviewSelection({
       </div>
 
       {/* ── Interview Type + Sub-type Selection ── */}
-      <div className="mb-6">
+      <div id="interview-selection-area" className="mb-6">
         <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-3">
-          Choose Interview Type
+          Select a technology and begin your interview practice.
         </p>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mb-4">
@@ -401,19 +418,35 @@ export default function InterviewSelection({
           </div>
         )}
 
+        {/* ── Start Buttons (Text & Voice only) ── */}
         {subType && (
-          <div className="mt-4 flex justify-center">
+          <div className="mt-4 flex flex-wrap gap-3 justify-center">
+            {/* Text Interview Button */}
             <Button
-              onClick={handleStart}
+              onClick={() => handleStart("text")}
               disabled={loading}
-              className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-xl px-8 py-5 text-sm rounded-xl font-semibold transition-all duration-200 hover:scale-105 hover:shadow-2xl"
+              className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-lg px-6 py-4 text-sm rounded-xl font-semibold transition-all duration-200 hover:scale-105 hover:shadow-2xl"
             >
               {loading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
-                <PlayCircle className="w-4 h-4 mr-2" />
+                <MessageCircle className="w-4 h-4 mr-2" />
               )}
-              Start {subType} {interviewMode === "voice" ? "Voice" : "Text"} Interview
+              Start {subType} Text
+            </Button>
+
+            {/* Voice Interview Button */}
+            <Button
+              onClick={() => handleStart("voice")}
+              disabled={loading}
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg px-6 py-4 text-sm rounded-xl font-semibold transition-all duration-200 hover:scale-105 hover:shadow-2xl"
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Volume2 className="w-4 h-4 mr-2" />
+              )}
+              Start {subType} Voice
             </Button>
           </div>
         )}

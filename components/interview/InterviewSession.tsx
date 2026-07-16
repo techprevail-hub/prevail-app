@@ -16,6 +16,8 @@ import {
   RotateCw,
   Clock,
   Target,
+  Video,
+  VideoOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -60,7 +62,7 @@ interface InterviewSessionProps {
   totalQuestions: number;
   interviewType: string;
   subType: string;
-  interviewMode: "text" | "voice";
+  interviewMode: "text" | "voice" | "video";
   audioUrl: string;
   voiceText: string;
   isLoadingAudio: boolean;
@@ -81,6 +83,16 @@ interface InterviewSessionProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
   onReplayAudio: () => void;
+  // Video interview specific props
+  isVideoMode?: boolean;
+  currentStage?: string;
+  currentStageIndex?: number;
+  totalStages?: number;
+  company?: string;
+  jobTitle?: string;
+  avatarStatus?: string;
+  onToggleWebcam?: () => void;
+  isWebcamOn?: boolean;
 }
 
 export default function InterviewSession({
@@ -111,6 +123,15 @@ export default function InterviewSession({
   onStartRecording,
   onStopRecording,
   onReplayAudio,
+  isVideoMode = false,
+  currentStage = "",
+  currentStageIndex = 0,
+  totalStages = 0,
+  company = "",
+  jobTitle = "",
+  avatarStatus = "",
+  onToggleWebcam,
+  isWebcamOn = false,
 }: InterviewSessionProps) {
   // Log to debug
   useEffect(() => {
@@ -161,6 +182,17 @@ export default function InterviewSession({
                   Voice
                 </Badge>
               )}
+              {interviewMode === "video" && (
+                <Badge className="bg-emerald-100 text-emerald-700 text-[9px] px-1.5 py-0 flex items-center gap-1">
+                  <Video className="w-3 h-3" />
+                  Video
+                </Badge>
+              )}
+              {isVideoMode && currentStage && (
+                <Badge className="bg-violet-100 text-violet-700 text-[9px] px-1.5 py-0">
+                  {currentStage}
+                </Badge>
+              )}
             </div>
             <span className="text-xs font-bold text-purple-600">
               {Math.round((currentQuestionNum / totalQuestions) * 100)}%
@@ -181,6 +213,36 @@ export default function InterviewSession({
               />
             ))}
           </div>
+          {/* Video interview stage progress */}
+          {isVideoMode && totalStages > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-gray-500">Stage {currentStageIndex + 1} of {totalStages}</span>
+                <span className="text-[10px] font-medium text-emerald-600">{currentStage}</span>
+              </div>
+              <div className="flex gap-1 mt-1.5">
+                {Array.from({ length: totalStages }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`flex-1 h-1 rounded-full transition-all duration-300 ${
+                      i < currentStageIndex
+                        ? "bg-emerald-500"
+                        : i === currentStageIndex
+                        ? "bg-emerald-400 animate-pulse"
+                        : "bg-gray-200"
+                    }`}
+                  />
+                ))}
+              </div>
+              {company && jobTitle && (
+                <div className="mt-2 flex items-center gap-2 text-[10px] text-gray-500">
+                  <span className="font-medium">{company}</span>
+                  <span className="text-gray-300">•</span>
+                  <span>{jobTitle}</span>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -207,19 +269,25 @@ export default function InterviewSession({
 
       {/* Question Card */}
       <Card className="border-0 shadow-xl rounded-2xl overflow-hidden">
-        <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-4">
+        <div className={`p-4 ${
+          isVideoMode 
+            ? "bg-gradient-to-r from-emerald-600 to-teal-600" 
+            : "bg-gradient-to-r from-violet-600 to-indigo-600"
+        }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-xs">{currentQuestionNum}</span>
               </div>
               <div>
-                <p className="text-white/70 text-[10px]">Question {currentQuestionNum} of {totalQuestions}</p>
+                <p className="text-white/70 text-[10px]">
+                  {isVideoMode ? `${currentStage} • Question` : "Question"} {currentQuestionNum} of {totalQuestions}
+                </p>
                 <p className="text-white font-semibold text-xs">{interviewType} • {subType}</p>
               </div>
             </div>
             <Badge className="bg-white/20 text-white border-0 text-[9px] px-2 py-0">
-              {interviewType}
+              {isVideoMode ? "Video" : interviewType}
             </Badge>
           </div>
         </div>
@@ -227,13 +295,13 @@ export default function InterviewSession({
           <p className="text-gray-800 text-sm lg:text-base leading-relaxed font-medium">
             {currentQuestion}
           </p>
-          {interviewMode === "voice" && (
+          {(interviewMode === "voice" || interviewMode === "video") && (
             <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-semibold text-blue-700 flex items-center gap-1">
                     <Volume2 className="w-3 h-3" />
-                    AI Interviewer is speaking...
+                    {isVideoMode ? "AI Avatar is speaking..." : "AI Interviewer is speaking..."}
                   </p>
                   <p className="text-xs text-blue-600 mt-0.5">{voiceText || currentQuestion}</p>
                 </div>
@@ -268,6 +336,12 @@ export default function InterviewSession({
                   <span className="text-[10px] text-blue-500">Playing audio...</span>
                 </div>
               )}
+              {isVideoMode && avatarStatus && (
+                <div className="mt-2 flex items-center gap-2 text-[10px] text-emerald-600 bg-emerald-50 p-1.5 rounded-lg">
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                  <span>Avatar: {avatarStatus}</span>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -279,10 +353,16 @@ export default function InterviewSession({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-sm text-gray-900">
-                {interviewMode === "voice" ? "Voice Answer" : "Your Answer"}
+                {interviewMode === "video" ? "Video Answer" : interviewMode === "voice" ? "Voice Answer" : "Your Answer"}
               </CardTitle>
               <CardDescription className="text-[10px] text-gray-400 mt-0.5">
-                {interviewMode === "voice" 
+                {interviewMode === "video" 
+                  ? isRecording 
+                      ? "🔴 Recording... Click 'Stop Recording' when done" 
+                      : transcript 
+                        ? "✅ Answer recorded - Click 'Submit' to continue" 
+                        : "Click 'Start Recording' to speak your answer"
+                  : interviewMode === "voice"
                   ? isRecording 
                       ? "🔴 Recording... Click 'Stop Recording' when done" 
                       : transcript 
@@ -291,7 +371,7 @@ export default function InterviewSession({
                   : "Be specific and use examples where possible"}
               </CardDescription>
             </div>
-            {interviewMode === "voice" && transcript && (
+            {(interviewMode === "voice" || interviewMode === "video") && transcript && (
               <div className="text-[10px] text-gray-400">
                 {transcript.split(' ').filter(Boolean).length} words
               </div>
@@ -304,14 +384,35 @@ export default function InterviewSession({
           </div>
         </CardHeader>
         <CardContent className="px-5 pt-2 pb-5">
-          {interviewMode === "voice" ? (
+          {(interviewMode === "voice" || interviewMode === "video") ? (
             <div className="space-y-3">
+              {/* Webcam toggle for video mode */}
+              {isVideoMode && onToggleWebcam && (
+                <div className="flex items-center gap-3 mb-2">
+                  <Button
+                    onClick={onToggleWebcam}
+                    variant={isWebcamOn ? "default" : "outline"}
+                    size="sm"
+                    className={isWebcamOn ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+                  >
+                    {isWebcamOn ? <Video className="w-4 h-4 mr-1" /> : <VideoOff className="w-4 h-4 mr-1" />}
+                    {isWebcamOn ? "Webcam On" : "Webcam Off"}
+                  </Button>
+                  <span className="text-[10px] text-gray-400">
+                    {isWebcamOn ? "Camera active" : "Camera off"}
+                  </span>
+                </div>
+              )}
               <div className="flex gap-2.5">
                 {!isRecording ? (
                   <Button
                     onClick={onStartRecording}
                     disabled={submitting || isPlayingAudio || isLoadingAudio}
-                    className={`flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg rounded-lg font-semibold py-4 text-xs transition-all duration-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`flex-1 ${
+                      isVideoMode 
+                        ? "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600" 
+                        : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                    } shadow-lg rounded-lg font-semibold py-4 text-xs transition-all duration-200 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed ${
                       transcript ? 'opacity-50' : ''
                     }`}
                   >
@@ -352,13 +453,17 @@ export default function InterviewSession({
                 </div>
               )}
 
-              {/* Show buttons for voice mode when transcript is available */}
+              {/* Show buttons for voice/video mode when transcript is available */}
               {transcript && !isRecording && (
                 <div className="grid grid-cols-2 gap-2.5 mt-3">
                   <Button
                     onClick={onSaveAnswer}
                     disabled={submitting || !transcript.trim()}
-                    className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg rounded-lg font-semibold py-4 text-xs transition-all duration-200 hover:shadow-xl"
+                    className={`${
+                      isVideoMode 
+                        ? "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600" 
+                        : "bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                    } shadow-lg rounded-lg font-semibold py-4 text-xs transition-all duration-200 hover:shadow-xl`}
                   >
                     {submitting ? (
                       <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
@@ -427,11 +532,15 @@ export default function InterviewSession({
       {/* Feedback Card */}
       {feedback && (
         <Card className="border-0 shadow-xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-3">
+          <div className={`p-3 ${
+            isVideoMode 
+              ? "bg-gradient-to-r from-emerald-500 to-teal-500" 
+              : "bg-gradient-to-r from-emerald-500 to-teal-500"
+          }`}>
             <div className="flex items-center gap-1.5">
               <Sparkles className="w-4 h-4 text-white" />
               <p className="text-white font-semibold text-xs">
-                AI Feedback — Question {currentQuestionNum - 1}
+                AI Feedback — {isVideoMode ? currentStage : `Question ${currentQuestionNum - 1}`}
               </p>
             </div>
           </div>
