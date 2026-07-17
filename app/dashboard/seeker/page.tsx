@@ -46,9 +46,12 @@ const colorTokens: Record<string, { light: string; icon: string; text: string; b
   indigo:  { light: "bg-indigo-50", icon: "text-indigo-600", text: "text-indigo-700", border: "border-indigo-200", gradient: "from-indigo-500 to-purple-500", dark: "bg-indigo-600", glow: "shadow-indigo-200" },
 };
 
-// ─── ENHANCED GRAPH LINE ─────────────────────────────────────────────────────
+// ─── ENHANCED GRAPH LINE WITH TOOLTIP ─────────────────────────────────────
 function EnhancedGraphLine({ score }: { score: number }) {
   const [animated, setAnimated] = useState(false);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; value: number; index: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  
   useEffect(() => { 
     const t = setTimeout(() => setAnimated(true), 400); 
     return () => clearTimeout(t); 
@@ -73,15 +76,17 @@ function EnhancedGraphLine({ score }: { score: number }) {
     return (arr[i-1] + v + arr[i+1]) / 3;
   });
 
-  const w = 400, h = 90, pad = 12;
+  const w = 1200, h = 180, pad = 10;
+  
   const min = Math.min(...smoothed) - 3;
   const max = Math.max(...smoothed) + 3;
   const range = max - min || 1;
 
   const pts = smoothed.map((v, i) => ({
-    x: pad + (i / (smoothed.length - 1)) * (w - pad * 2),
+    x: (i / (smoothed.length - 1)) * w,
     y: pad + (1 - (v - min) / range) * (h - pad * 2),
-    value: v
+    value: v,
+    index: i
   }));
 
   let linePath = "";
@@ -95,11 +100,52 @@ function EnhancedGraphLine({ score }: { score: number }) {
     }
   }
 
-  const areaPath = `${linePath} L ${pts[pts.length-1].x} ${h - pad} L ${pts[0].x} ${h - pad} Z`;
+  const areaPath = `${linePath} L ${w} ${h} L 0 ${h} Z`;
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!svgRef.current) return;
+    
+    const rect = svgRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const svgX = (x / rect.width) * w;
+    
+    let closest = pts[0];
+    let minDist = Infinity;
+    
+    for (const p of pts) {
+      const dist = Math.abs(p.x - svgX);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = p;
+      }
+    }
+    
+    if (minDist < 80) {
+      setTooltip({
+        x: closest.x,
+        y: closest.y,
+        value: Math.round(closest.value),
+        index: closest.index
+      });
+    } else {
+      setTooltip(null);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setTooltip(null);
+  };
 
   return (
-    <div className="relative">
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 90 }}>
+    <div className="relative w-full h-full">
+      <svg 
+        ref={svgRef}
+        viewBox={`0 0 ${w} ${h}`} 
+        preserveAspectRatio="none"
+        className="w-full h-full cursor-crosshair"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
         <defs>
           <linearGradient id="enhancedLineGrad" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#8b5cf6" />
@@ -107,12 +153,19 @@ function EnhancedGraphLine({ score }: { score: number }) {
             <stop offset="100%" stopColor="#6d28d9" />
           </linearGradient>
           <linearGradient id="enhancedAreaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.3" />
-            <stop offset="40%" stopColor="#7c3aed" stopOpacity="0.15" />
-            <stop offset="100%" stopColor="#6d28d9" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.35" />
+            <stop offset="40%" stopColor="#7c3aed" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#6d28d9" stopOpacity="0.05" />
           </linearGradient>
           <filter id="glow">
-            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feGaussianBlur stdDeviation="8" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="tooltipGlow">
+            <feGaussianBlur stdDeviation="2" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
@@ -120,25 +173,39 @@ function EnhancedGraphLine({ score }: { score: number }) {
           </filter>
         </defs>
 
+        {Array.from({ length: 6 }).map((_, i) => (
+          <line
+            key={i}
+            x1={0}
+            y1={(h / 6) * i}
+            x2={w}
+            y2={(h / 6) * i}
+            stroke="rgba(139,92,246,0.08)"
+            strokeWidth="1"
+          />
+        ))}
+
         <path d={areaPath} fill="url(#enhancedAreaGrad)" />
+        
         <path
           d={linePath}
           fill="none"
           stroke="url(#enhancedLineGrad)"
-          strokeWidth="3"
+          strokeWidth="5"
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeDasharray={500}
-          strokeDashoffset={animated ? 0 : 500}
+          strokeDasharray={2000}
+          strokeDashoffset={animated ? 0 : 2000}
           style={{ transition: "stroke-dashoffset 1.8s cubic-bezier(0.34,1.56,0.64,1)" }}
           filter="url(#glow)"
         />
+        
         {pts.map((p, i) => (
           <circle
             key={i}
             cx={p.x} 
             cy={p.y} 
-            r={i === pts.length - 1 ? 6 : 3.5}
+            r={i === pts.length - 1 ? 9 : 5}
             fill={i === pts.length - 1 ? "#7c3aed" : "#8b5cf6"}
             opacity={animated ? 1 : 0}
             style={{ 
@@ -147,12 +214,58 @@ function EnhancedGraphLine({ score }: { score: number }) {
             }}
           />
         ))}
+        
+        {tooltip && (
+          <g>
+            <line
+              x1={tooltip.x}
+              y1={tooltip.y - 10}
+              x2={tooltip.x}
+              y2={h}
+              stroke="rgba(124,58,237,0.3)"
+              strokeWidth="2"
+              strokeDasharray="4 4"
+            />
+            
+            <circle
+              cx={tooltip.x}
+              cy={tooltip.y}
+              r="12"
+              fill="none"
+              stroke="#7c3aed"
+              strokeWidth="3"
+              opacity="0.6"
+              filter="url(#tooltipGlow)"
+            />
+            
+            <circle
+              cx={tooltip.x}
+              cy={tooltip.y}
+              r="6"
+              fill="#7c3aed"
+              opacity="0.9"
+            />
+            
+            <foreignObject
+              x={tooltip.x - 35}
+              y={tooltip.y - 50}
+              width="70"
+              height="30"
+              style={{ overflow: 'visible' }}
+            >
+              <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-lg border border-violet-200 text-center">
+                <span className="text-sm font-bold text-violet-700">{tooltip.value}</span>
+              </div>
+            </foreignObject>
+          </g>
+        )}
+        
         {animated && (
           <g>
             <text 
-              x={pts[pts.length-1].x + 10} 
-              y={pts[pts.length-1].y + 5}
-              fontSize="13" 
+              x={pts[pts.length-1].x + 14} 
+              y={pts[pts.length-1].y + 6}
+              fontSize="16" 
               fontWeight="800" 
               fill="#7c3aed"
               className="drop-shadow-lg"
@@ -280,7 +393,6 @@ export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user data from dashboard API
   const fetchDashboard = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -293,10 +405,7 @@ export default function DashboardPage() {
       console.log("Dashboard Data:", response);
 
       if (response.success) {
-        // Set dashboard data
         setDashboardData(response.data);
-        
-        // Set user data from dashboard response
         if (response.data?.user) {
           setUser(response.data.user);
         }
@@ -311,7 +420,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Fallback: Fetch individual data from each endpoint
   const fetchIndividualData = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -329,7 +437,6 @@ export default function DashboardPage() {
         coach: { completed: false, count: 0 },
       };
 
-      // Try to get user from /api/me as fallback
       try {
         const userRes = await api.get("/api/me");
         if (userRes.success && userRes.user) {
@@ -422,15 +529,6 @@ export default function DashboardPage() {
   const overallScore = dashboardData?.careerReadinessScore || 
     Math.round((completedSteps / careerSteps.length) * 100);
 
-  const updatedCareerSteps = careerSteps.map(step => {
-    const key = step.key;
-    if (milestones[key] === true) {
-      return { ...step, done: true };
-    }
-    return { ...step, done: false };
-  });
-
-  // Career Progress Card
   const careerProgressCard = {
     label: "Career Progress",
     icon: Target,
@@ -442,7 +540,6 @@ export default function DashboardPage() {
     changeValue: dashboardData?.careerReady ? "🎯 Career Ready" : "🔄 In Progress"
   };
 
-  // Journey cards with real data from dashboard API (6 cards including Progress)
   const journeyCards = [
     careerProgressCard,
     { 
@@ -497,7 +594,6 @@ export default function DashboardPage() {
     },
   ];
 
-  // AI Suggestions (replacing Recent Activities)
   const aiSuggestions = [
     { 
       id: 1, 
@@ -590,48 +686,34 @@ export default function DashboardPage() {
 
         {/* ── 1. HERO WELCOME ───────────────────────────────────────────────── */}
         <FadeIn delay={0}>
-          <div className="relative rounded-3xl overflow-hidden px-6 py-6 lg:px-8 shadow-2xl shadow-violet-200"
+          <div className="relative rounded-3xl overflow-hidden shadow-2xl shadow-violet-200 min-h-[200px] lg:min-h-[220px] w-full"
             style={{ background: "linear-gradient(135deg, #ede9fe 0%, #ddd6fe 30%, #c7d2fe 65%, #e0e7ff 100%)" }}>
 
             <div className="pointer-events-none absolute -top-10 -right-10 w-72 h-72 rounded-full bg-violet-300/30 blur-3xl animate-float" />
             <div className="pointer-events-none absolute bottom-0 left-1/4 w-80 h-40 rounded-full bg-indigo-300/25 blur-3xl" />
             <div className="pointer-events-none absolute top-6 right-1/3 w-32 h-32 rounded-full bg-purple-200/40 blur-2xl" />
-            <div className="pointer-events-none absolute top-4 left-1/4 w-12 h-12 rounded-full border-2 border-violet-300/20" />
-            <div className="pointer-events-none absolute bottom-8 right-8 w-16 h-16 rounded-full border-2 border-indigo-300/20" />
-
+            
             <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
               <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-violet-400/50 to-transparent animate-[shimmer_3s_ease-in-out_infinite]" />
             </div>
 
-            <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-              <div className="flex-1">
-                <div className="inline-flex items-center gap-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-full mb-3 backdrop-blur-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Intelligence Stream Active
-                </div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 mb-1 tracking-tight">
-                  Welcome back, {firstName} 👋
-                </h1>
-                <p className="text-slate-600 text-sm lg:text-base max-w-md">
-                  Track your career journey and stay updated with your overall progress.
-                </p>
-              </div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.12),transparent_70%)]" />
 
-              <div className="flex-1 min-w-[180px] px-2">
-                <div className="bg-white/30 backdrop-blur-sm rounded-2xl p-3 border border-white/40 shadow-lg">
-                  <div className="flex items-center justify-between mb-1 px-1">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Performance Trend</span>
-                    <span className="text-xs font-bold text-emerald-600 flex items-center gap-0.5 bg-emerald-50/80 px-2 py-0.5 rounded-full">
-                      <ArrowUpRight className="w-3 h-3" /> +4%
-                    </span>
+            <div className="relative w-full h-full p-4 lg:p-6">
+              {/* Welcome text in top-left corner */}
+              <div className="absolute top-4 left-4 lg:top-6 lg:left-6 z-10">
+                <span className="text-sm lg:text-base font-bold text-slate-700">
+                  Welcome back, <span className="text-violet-700">{firstName}</span> 😊
+                </span>
+              </div>
+              
+              {/* Graph - full width */}
+              <div className="w-full h-full">
+                <div className="w-full h-full flex flex-col justify-center">
+                  <div className="relative w-full h-[180px] lg:h-[200px]">
+                    <EnhancedGraphLine score={overallScore || 50} />
                   </div>
-                  <EnhancedGraphLine score={overallScore || 50} />
                 </div>
-              </div>
-
-              <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Overall Score</p>
-                <CareerScoreDonut score={overallScore || 50} />
               </div>
             </div>
           </div>
@@ -658,7 +740,6 @@ export default function DashboardPage() {
 
         {/* ── 3. JOB INSIGHTS SNAPSHOT ────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative">
-          {/* Full Insights link in corner */}
           <button
             onClick={() => router.push("/dashboard/seeker/job-insights")}
             className="absolute -top-1 right-0 text-xs font-semibold text-violet-600 hover:text-violet-800 flex items-center gap-1 transition-colors z-10 bg-white/80 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm hover:shadow-md"
