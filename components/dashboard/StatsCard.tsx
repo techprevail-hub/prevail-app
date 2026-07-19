@@ -15,6 +15,7 @@ interface StatsCardProps {
   score?: number | null;
   scoreSuffix?: string;
   changeValue?: string | null;
+  isJourney?: boolean;
   variant?: "metric" | "activity";
 }
 
@@ -28,7 +29,7 @@ const colorTokens = {
 };
 
 export default function StatsCard({
-  label, icon: Icon, color, description, href, score, scoreSuffix, changeValue, variant = "metric"
+  label, icon: Icon, color, description, href, score, scoreSuffix, changeValue, isJourney, variant = "metric"
 }: StatsCardProps) {
   const router = useRouter();
   const t = colorTokens[color];

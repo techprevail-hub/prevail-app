@@ -5,17 +5,16 @@ import { useRouter } from "next/navigation";
 import {
   FileText, User, ShieldCheck, Mic,
   Camera, Users, TrendingUp, Sparkles,
-  CheckCircle2, Circle, ChevronRight,
-  BookOpen, MapPin, Briefcase, ArrowUpRight, Activity,
-  Flame, Zap, Loader2, Target, BarChart3, Clock,
-  Award, Rocket, Star,
+  ChevronRight,
+  MapPin, Briefcase, ArrowUpRight,
+  Flame, Loader2, Target,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import StatsCard from "@/components/dashboard/StatsCard";
 import DashboardSection from "@/components/dashboard/DashboardSection";
+import HeroSection from "@/components/dashboard/HeroSection";
 import { api } from "@/utils/apiServices";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
 interface UserData { name: string; role: string; email: string; }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -45,288 +44,6 @@ const colorTokens: Record<string, { light: string; icon: string; text: string; b
   amber:   { light: "bg-amber-50", icon: "text-amber-600", text: "text-amber-700", border: "border-amber-200", gradient: "from-amber-500 to-orange-500", dark: "bg-amber-600", glow: "shadow-amber-200" },
   indigo:  { light: "bg-indigo-50", icon: "text-indigo-600", text: "text-indigo-700", border: "border-indigo-200", gradient: "from-indigo-500 to-purple-500", dark: "bg-indigo-600", glow: "shadow-indigo-200" },
 };
-
-// ─── ENHANCED GRAPH LINE WITH TOOLTIP ─────────────────────────────────────
-function EnhancedGraphLine({ score }: { score: number }) {
-  const [animated, setAnimated] = useState(false);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; value: number; index: number } | null>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  
-  useEffect(() => { 
-    const t = setTimeout(() => setAnimated(true), 400); 
-    return () => clearTimeout(t); 
-  }, []);
-
-  const base = Math.max(score - 35, 15);
-  const raw = [
-    base, 
-    base + Math.floor(Math.random() * 5) + 2, 
-    base + Math.floor(Math.random() * 8) + 3, 
-    base + Math.floor(Math.random() * 10) + 5, 
-    base + Math.floor(Math.random() * 12) + 7, 
-    base + Math.floor(Math.random() * 15) + 10, 
-    base + Math.floor(Math.random() * 18) + 12, 
-    base + Math.floor(Math.random() * 20) + 15, 
-    base + Math.floor(Math.random() * 22) + 18, 
-    score
-  ];
-  
-  const smoothed = raw.map((v, i, arr) => {
-    if (i === 0 || i === arr.length - 1) return v;
-    return (arr[i-1] + v + arr[i+1]) / 3;
-  });
-
-  const w = 1200, h = 180, pad = 10;
-  
-  const min = Math.min(...smoothed) - 3;
-  const max = Math.max(...smoothed) + 3;
-  const range = max - min || 1;
-
-  const pts = smoothed.map((v, i) => ({
-    x: (i / (smoothed.length - 1)) * w,
-    y: pad + (1 - (v - min) / range) * (h - pad * 2),
-    value: v,
-    index: i
-  }));
-
-  let linePath = "";
-  for (let i = 0; i < pts.length; i++) {
-    if (i === 0) {
-      linePath = `M ${pts[i].x} ${pts[i].y}`;
-    } else {
-      const prev = pts[i - 1];
-      const cp1x = (prev.x + pts[i].x) / 2;
-      linePath += ` C ${cp1x} ${prev.y} ${cp1x} ${pts[i].y} ${pts[i].x} ${pts[i].y}`;
-    }
-  }
-
-  const areaPath = `${linePath} L ${w} ${h} L 0 ${h} Z`;
-
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!svgRef.current) return;
-    
-    const rect = svgRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const svgX = (x / rect.width) * w;
-    
-    let closest = pts[0];
-    let minDist = Infinity;
-    
-    for (const p of pts) {
-      const dist = Math.abs(p.x - svgX);
-      if (dist < minDist) {
-        minDist = dist;
-        closest = p;
-      }
-    }
-    
-    if (minDist < 80) {
-      setTooltip({
-        x: closest.x,
-        y: closest.y,
-        value: Math.round(closest.value),
-        index: closest.index
-      });
-    } else {
-      setTooltip(null);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    setTooltip(null);
-  };
-
-  return (
-    <div className="relative w-full h-full">
-      <svg 
-        ref={svgRef}
-        viewBox={`0 0 ${w} ${h}`} 
-        preserveAspectRatio="none"
-        className="w-full h-full cursor-crosshair"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-      >
-        <defs>
-          <linearGradient id="enhancedLineGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#8b5cf6" />
-            <stop offset="50%" stopColor="#7c3aed" />
-            <stop offset="100%" stopColor="#6d28d9" />
-          </linearGradient>
-          <linearGradient id="enhancedAreaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.35" />
-            <stop offset="40%" stopColor="#7c3aed" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#6d28d9" stopOpacity="0.05" />
-          </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="8" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <filter id="tooltipGlow">
-            <feGaussianBlur stdDeviation="2" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        {Array.from({ length: 6 }).map((_, i) => (
-          <line
-            key={i}
-            x1={0}
-            y1={(h / 6) * i}
-            x2={w}
-            y2={(h / 6) * i}
-            stroke="rgba(139,92,246,0.08)"
-            strokeWidth="1"
-          />
-        ))}
-
-        <path d={areaPath} fill="url(#enhancedAreaGrad)" />
-        
-        <path
-          d={linePath}
-          fill="none"
-          stroke="url(#enhancedLineGrad)"
-          strokeWidth="5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray={2000}
-          strokeDashoffset={animated ? 0 : 2000}
-          style={{ transition: "stroke-dashoffset 1.8s cubic-bezier(0.34,1.56,0.64,1)" }}
-          filter="url(#glow)"
-        />
-        
-        {pts.map((p, i) => (
-          <circle
-            key={i}
-            cx={p.x} 
-            cy={p.y} 
-            r={i === pts.length - 1 ? 9 : 5}
-            fill={i === pts.length - 1 ? "#7c3aed" : "#8b5cf6"}
-            opacity={animated ? 1 : 0}
-            style={{ 
-              transition: `opacity 0.4s ease ${0.8 + i * 0.06}s, transform 0.3s ease`,
-              transform: animated ? "scale(1)" : "scale(0)"
-            }}
-          />
-        ))}
-        
-        {tooltip && (
-          <g>
-            <line
-              x1={tooltip.x}
-              y1={tooltip.y - 10}
-              x2={tooltip.x}
-              y2={h}
-              stroke="rgba(124,58,237,0.3)"
-              strokeWidth="2"
-              strokeDasharray="4 4"
-            />
-            
-            <circle
-              cx={tooltip.x}
-              cy={tooltip.y}
-              r="12"
-              fill="none"
-              stroke="#7c3aed"
-              strokeWidth="3"
-              opacity="0.6"
-              filter="url(#tooltipGlow)"
-            />
-            
-            <circle
-              cx={tooltip.x}
-              cy={tooltip.y}
-              r="6"
-              fill="#7c3aed"
-              opacity="0.9"
-            />
-            
-            <foreignObject
-              x={tooltip.x - 35}
-              y={tooltip.y - 50}
-              width="70"
-              height="30"
-              style={{ overflow: 'visible' }}
-            >
-              <div className="bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-lg border border-violet-200 text-center">
-                <span className="text-sm font-bold text-violet-700">{tooltip.value}</span>
-              </div>
-            </foreignObject>
-          </g>
-        )}
-        
-        {animated && (
-          <g>
-            <text 
-              x={pts[pts.length-1].x + 14} 
-              y={pts[pts.length-1].y + 6}
-              fontSize="16" 
-              fontWeight="800" 
-              fill="#7c3aed"
-              className="drop-shadow-lg"
-            >
-              {Math.round(pts[pts.length-1].value)}
-            </text>
-          </g>
-        )}
-      </svg>
-    </div>
-  );
-}
-
-// ─── Career Score Donut ─────────────────────────────────────────────────────
-function CareerScoreDonut({ score }: { score: number }) {
-  const [drawn, setDrawn] = useState(0);
-  const r = 52, circ = 2 * Math.PI * r;
-  useEffect(() => { const t = setTimeout(() => setDrawn(score), 300); return () => clearTimeout(t); }, [score]);
-  return (
-    <div className="relative w-32 h-32 flex-shrink-0">
-      <svg width="128" height="128" viewBox="0 0 128 128" className="-rotate-90">
-        <defs>
-          <linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#7c3aed" />
-            <stop offset="100%" stopColor="#6366f1" />
-          </linearGradient>
-          <filter id="donutGlow">
-            <feGaussianBlur stdDeviation="2" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        <circle cx="64" cy="64" r={r} fill="none" stroke="rgba(109,40,217,0.12)" strokeWidth="12" />
-        <circle 
-          cx="64" cy="64" r={r} 
-          fill="none" 
-          stroke="url(#scoreGrad)" 
-          strokeWidth="12"
-          strokeLinecap="round"
-          strokeDasharray={circ}
-          strokeDashoffset={circ - (drawn / 100) * circ}
-          style={{ transition: "stroke-dashoffset 1.4s cubic-bezier(0.34,1.56,0.64,1)" }}
-          filter="url(#donutGlow)"
-        />
-        <circle 
-          cx="64" cy="64" r={r + 4} 
-          fill="none" 
-          stroke="rgba(124,58,237,0.1)" 
-          strokeWidth="1"
-          strokeDasharray="4 8"
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-bold text-violet-700 leading-none">{score}</span>
-        <span className="text-xs text-slate-500 font-semibold">/100</span>
-      </div>
-    </div>
-  );
-}
 
 // ─── FadeIn Animation ─────────────────────────────────────────────────────
 function FadeIn({ children, delay = 0, direction = "up" }: {
@@ -359,29 +76,6 @@ function FadeIn({ children, delay = 0, direction = "up" }: {
   return (
     <div ref={ref} className={`transition-all duration-700 ease-out ${show ? "opacity-100 translate-x-0 translate-y-0" : hidden}`}>
       {children}
-    </div>
-  );
-}
-
-// ─── Progress Donut ──────────────────────────────────────────────────────
-function ProgressDonut({ pct, color, size = 80 }: { pct: number; color: string; size?: number }) {
-  const [drawn, setDrawn] = useState(0);
-  const r = (size - 12) / 2, circ = 2 * Math.PI * r;
-  useEffect(() => { const t = setTimeout(() => setDrawn(pct), 500); return () => clearTimeout(t); }, [pct]);
-  return (
-    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#ede9fe" strokeWidth="8" />
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={circ}
-          strokeDashoffset={circ - (drawn / 100) * circ}
-          style={{ transition: "stroke-dashoffset 1s cubic-bezier(0.34,1.2,0.64,1)" }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-bold" style={{ color }}>{pct}%</span>
-      </div>
     </div>
   );
 }
@@ -682,41 +376,11 @@ export default function DashboardPage() {
           animation: pulse-glow 2s ease-in-out infinite;
         }
       `}</style>
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 py-4 lg:py-6 space-y-5">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 py-2 lg:py-3 space-y-5">
 
-        {/* ── 1. HERO WELCOME ───────────────────────────────────────────────── */}
+        {/* ── 1. PREMIUM HERO SECTION ─────────────────────────────────────── */}
         <FadeIn delay={0}>
-          <div className="relative rounded-3xl overflow-hidden shadow-2xl shadow-violet-200 min-h-[200px] lg:min-h-[220px] w-full"
-            style={{ background: "linear-gradient(135deg, #ede9fe 0%, #ddd6fe 30%, #c7d2fe 65%, #e0e7ff 100%)" }}>
-
-            <div className="pointer-events-none absolute -top-10 -right-10 w-72 h-72 rounded-full bg-violet-300/30 blur-3xl animate-float" />
-            <div className="pointer-events-none absolute bottom-0 left-1/4 w-80 h-40 rounded-full bg-indigo-300/25 blur-3xl" />
-            <div className="pointer-events-none absolute top-6 right-1/3 w-32 h-32 rounded-full bg-purple-200/40 blur-2xl" />
-            
-            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
-              <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-violet-400/50 to-transparent animate-[shimmer_3s_ease-in-out_infinite]" />
-            </div>
-
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(124,58,237,0.12),transparent_70%)]" />
-
-            <div className="relative w-full h-full p-4 lg:p-6">
-              {/* Welcome text in top-left corner */}
-              <div className="absolute top-4 left-4 lg:top-6 lg:left-6 z-10">
-                <span className="text-sm lg:text-base font-bold text-slate-700">
-                  Welcome back, <span className="text-violet-700">{firstName}</span> 😊
-                </span>
-              </div>
-              
-              {/* Graph - full width */}
-              <div className="w-full h-full">
-                <div className="w-full h-full flex flex-col justify-center">
-                  <div className="relative w-full h-[180px] lg:h-[200px]">
-                    <EnhancedGraphLine score={overallScore || 50} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <HeroSection user={user} score={overallScore} />
         </FadeIn>
 
         {/* ── 2. JOURNEY FEATURES - 6 COLUMN GRID ────────────────────────── */}
