@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [authErrorMsg, setAuthErrorMsg] = useState("");
@@ -28,15 +26,25 @@ export default function LoginPage() {
     }
   }, []);
 
-  // ─── NEW: useEffect for Invitation Token ──────────────────────────────
+  // ─── NEW: useEffect for Invitation Token (no useSearchParams) ──────────
   useEffect(() => {
-    const inviteToken = searchParams.get("inviteToken");
+    // Read token directly from URL using window.location
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteToken = urlParams.get("inviteToken");
 
     if (inviteToken) {
       localStorage.setItem("inviteToken", inviteToken);
       console.log("Invitation Token Saved:", inviteToken);
+      
+      // Optional: Clean the URL to remove the token parameter
+      // This prevents the token from being visible in the URL after saving
+      if (window.history && window.history.replaceState) {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        console.log("URL cleaned, token removed from address bar");
+      }
     }
-  }, [searchParams]);
+  }, []);
 
   // ─── Google Login ──────────────────────────────────────────────────────
   const handleGoogleLogin = async () => {
