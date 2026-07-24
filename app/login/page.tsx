@@ -1,21 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [authErrorMsg, setAuthErrorMsg] = useState("");
 
+  // ─── Existing useEffect 1 ──────────────────────────────────────────────
   useEffect(() => {
     const remember = localStorage.getItem("rememberMe") === "true";
     if (remember) setRememberMe(true);
   }, []);
 
+  // ─── Existing useEffect 2 ──────────────────────────────────────────────
   useEffect(() => {
     const err = localStorage.getItem("authError");
     if (err) {
@@ -24,11 +28,24 @@ export default function LoginPage() {
     }
   }, []);
 
+  // ─── NEW: useEffect for Invitation Token ──────────────────────────────
+  useEffect(() => {
+    const inviteToken = searchParams.get("inviteToken");
+
+    if (inviteToken) {
+      localStorage.setItem("inviteToken", inviteToken);
+      console.log("Invitation Token Saved:", inviteToken);
+    }
+  }, [searchParams]);
+
+  // ─── Google Login ──────────────────────────────────────────────────────
   const handleGoogleLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
       if (error) throw error;
     } catch (err) {
@@ -37,11 +54,14 @@ export default function LoginPage() {
     }
   };
 
+  // ─── LinkedIn Login ────────────────────────────────────────────────────
   const handleLinkedInLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "linkedin_oidc",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
       });
       if (error) throw error;
     } catch (err) {
@@ -50,6 +70,7 @@ export default function LoginPage() {
     }
   };
 
+  // ─── Remember Me ───────────────────────────────────────────────────────
   const handleRememberMe = (checked: boolean) => {
     setRememberMe(checked);
     localStorage.setItem("rememberMe", String(checked));

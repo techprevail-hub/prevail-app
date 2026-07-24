@@ -55,6 +55,10 @@ export default function CallbackPage() {
         localStorage.setItem("userEmail", user.email || "");
         localStorage.setItem("userId", user.id);
 
+        // ─── NEW: Check if user came from an invitation ──────────────
+        const inviteToken = localStorage.getItem("inviteToken");
+        console.log("Invite Token:", inviteToken);
+
         // Check if user exists in database
         const { data: existingUser, error: fetchError } = await supabase
           .from("users")
