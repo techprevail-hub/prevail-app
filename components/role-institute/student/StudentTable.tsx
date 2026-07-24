@@ -1,4 +1,3 @@
-// components/institute/student/StudentTable.tsx
 "use client";
 
 import { useState } from "react";
@@ -68,7 +67,44 @@ function readinessColor(score: number) {
 }
 
 function initials(name: string) {
+  if (!name) return "?";
   return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+}
+
+// ─── Get profile image URL from email using Gravatar ───────────────────────
+function getProfileImageUrl(email: string, size: number = 80): string {
+  if (!email) return "";
+  
+  // Trim and lowercase the email
+  const trimmedEmail = email.trim().toLowerCase();
+  
+  // Generate MD5 hash of the email
+  // Note: In production, you might want to use a proper MD5 library
+  // For now, we'll use a simple approach or you can use the crypto API
+  const hash = generateMD5(trimmedEmail);
+  
+  // Gravatar URL
+  return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon&r=g`;
+}
+
+// ─── Simple MD5 hash generator (for Gravatar) ─────────────────────────────
+function generateMD5(str: string): string {
+  // This is a simple implementation
+  // For production, consider using a proper library like md5 or crypto
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  // Convert to hex string with padding
+  return Math.abs(hash).toString(16).padStart(32, '0');
+}
+
+// ─── Alternative: Use a service like UI Avatars for fallback ──────────────
+function getAvatarFallbackUrl(name: string, email: string): string {
+  // UI Avatars API - generates avatar from initials
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6C5CE7&color=fff&size=80&bold=true`;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -182,6 +218,11 @@ export default function StudentTable({
             {/* ── Data rows ── */}
             {!loading && students.map(student => {
               const rc = readinessColor(student.readiness_score ?? 0);
+              // Get profile image from email using Gravatar
+              const profileImage = student.profile_image || getProfileImageUrl(student.email);
+              // Fallback avatar URL if needed
+              const fallbackAvatar = getAvatarFallbackUrl(student.full_name, student.email);
+              
               return (
                 <tr
                   key={student.id}
@@ -190,7 +231,10 @@ export default function StudentTable({
                 >
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <Avatar className="w-9 h-9 ring-2 ring-white shadow-sm">
-                      <AvatarImage src={student.profile_image} alt={student.full_name} />
+                      <AvatarImage 
+                        src={profileImage || fallbackAvatar} 
+                        alt={student.full_name}
+                      />
                       <AvatarFallback className="bg-violet-100 text-violet-700 text-xs font-bold">
                         {initials(student.full_name)}
                       </AvatarFallback>

@@ -68,13 +68,12 @@ const refreshToken = async (): Promise<boolean> => {
   }
 };
 
-// API Service with proper types
+// API Service with only HTTP methods
 export const api = {
   async get(endpoint: string, params?: Record<string, any>) {
     try {
       const headers = await getAuthHeaders(false);
 
-      // Build query string
       const queryString = params
         ? `?${new URLSearchParams(
             Object.entries(params)
@@ -89,12 +88,9 @@ export const api = {
       });
 
       if (response.status === 401) {
-        // Token expired, try to refresh
         const refreshed = await refreshToken();
-
         if (refreshed) {
           const newHeaders = await getAuthHeaders(false);
-
           const retryResponse = await fetch(
             `${API_URL}${endpoint}${queryString}`,
             {
@@ -102,7 +98,6 @@ export const api = {
               headers: newHeaders,
             }
           );
-
           const retryData = await retryResponse.json();
           return retryData;
         } else {
@@ -125,11 +120,7 @@ export const api = {
     
     try {
       const headers = await getAuthHeaders(isFormData);
-      
-      // Merge any custom headers if provided
       const finalHeaders = options?.headers ? { ...headers, ...options.headers } : headers;
-      
-      // Don't stringify FormData
       const requestBody = isFormData ? body : JSON.stringify(body);
       
       const response = await fetch(`${API_URL}${endpoint}`, {
@@ -143,7 +134,6 @@ export const api = {
         if (refreshed) {
           const newHeaders = await getAuthHeaders(isFormData);
           const finalRetryHeaders = options?.headers ? { ...newHeaders, ...options.headers } : newHeaders;
-          
           const retryResponse = await fetch(`${API_URL}${endpoint}`, {
             method: "POST",
             headers: finalRetryHeaders,
@@ -172,7 +162,6 @@ export const api = {
     try {
       const headers = await getAuthHeaders(isFormData);
       const finalHeaders = options?.headers ? { ...headers, ...options.headers } : headers;
-      
       const requestBody = isFormData ? body : JSON.stringify(body);
       
       const response = await fetch(`${API_URL}${endpoint}`, {
@@ -186,7 +175,6 @@ export const api = {
         if (refreshed) {
           const newHeaders = await getAuthHeaders(isFormData);
           const finalRetryHeaders = options?.headers ? { ...newHeaders, ...options.headers } : newHeaders;
-          
           const retryResponse = await fetch(`${API_URL}${endpoint}`, {
             method: "PUT",
             headers: finalRetryHeaders,
@@ -205,6 +193,50 @@ export const api = {
       return data;
     } catch (error) {
       console.error("API PUT error:", error);
+      throw error;
+    }
+  },
+
+  async patch(endpoint: string, body?: any, options?: { isFormData?: boolean; headers?: Record<string, string> }) {
+    const isFormData = options?.isFormData || body instanceof FormData;
+    
+    try {
+      const headers = await getAuthHeaders(isFormData);
+      const finalHeaders = options?.headers ? { ...headers, ...options.headers } : headers;
+      let requestBody = undefined;
+      if (body) {
+        requestBody = isFormData ? body : JSON.stringify(body);
+      }
+      
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: "PATCH",
+        headers: finalHeaders,
+        body: requestBody,
+      });
+
+      if (response.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          const newHeaders = await getAuthHeaders(isFormData);
+          const finalRetryHeaders = options?.headers ? { ...newHeaders, ...options.headers } : newHeaders;
+          const retryResponse = await fetch(`${API_URL}${endpoint}`, {
+            method: "PATCH",
+            headers: finalRetryHeaders,
+            body: requestBody,
+          });
+          const retryData = await retryResponse.json();
+          return retryData;
+        } else {
+          localStorage.clear();
+          window.location.href = "/login";
+          throw new Error("Session expired");
+        }
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("API PATCH error:", error);
       throw error;
     }
   },
