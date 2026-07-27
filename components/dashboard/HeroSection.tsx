@@ -21,6 +21,10 @@ function EnhancedGraphLine({ score }: { score: number }) {
     return () => clearTimeout(t); 
   }, []);
 
+  // ✅ Use the actual score, don't default to 50
+  // If score is 0, show 0 in the graph
+  const finalScore = Math.min(Math.max(score, 0), 100);
+
   // Generate trending data points that naturally increase from bottom to top
   const generateTrendingData = (finalScore: number) => {
     const points = 10;
@@ -53,7 +57,7 @@ function EnhancedGraphLine({ score }: { score: number }) {
     return data;
   };
 
-  const raw = generateTrendingData(score);
+  const raw = generateTrendingData(finalScore);
   
   const smoothed = raw.map((v, i, arr) => {
     if (i === 0 || i === arr.length - 1) return v;
@@ -131,10 +135,14 @@ function EnhancedGraphLine({ score }: { score: number }) {
     if (currentScore >= 60) return "💪 You're doing great! Keep pushing forward!";
     if (currentScore >= 40) return "📈 Good start! More effort needed to reach the top!";
     if (currentScore >= 20) return "🌱 You're on the right track! Keep building!";
-    return "🚀 Start your journey to 100%!";
+    if (currentScore > 0) return "🚀 Start your journey to 100%!";
+    return "📊 Begin by completing your profile milestones";
   };
 
-  const milestoneMessage = getMilestoneMessage(score);
+  const milestoneMessage = getMilestoneMessage(finalScore);
+
+  // Determine if the score is 0 (new user)
+  const isZeroScore = finalScore === 0;
 
   return (
     <div className="relative w-full h-full">
@@ -195,7 +203,7 @@ function EnhancedGraphLine({ score }: { score: number }) {
             stroke="#22c55e"
             strokeWidth="2"
             strokeDasharray="4 4"
-            opacity="0.6"
+            opacity={isZeroScore ? "0.3" : "0.6"}
           />
           <text 
             x={w - 20} 
@@ -205,6 +213,7 @@ function EnhancedGraphLine({ score }: { score: number }) {
             fontWeight="600" 
             fontFamily="system-ui"
             textAnchor="start"
+            opacity={isZeroScore ? "0.4" : "1"}
           >
             100%
           </text>
@@ -218,7 +227,7 @@ function EnhancedGraphLine({ score }: { score: number }) {
             stroke="#8b5cf6"
             strokeWidth="1.5"
             strokeDasharray="3 3"
-            opacity="0.4"
+            opacity={isZeroScore ? "0.2" : "0.4"}
           />
           <text 
             x={w - 20} 
@@ -228,6 +237,7 @@ function EnhancedGraphLine({ score }: { score: number }) {
             fontWeight="500" 
             fontFamily="system-ui"
             textAnchor="start"
+            opacity={isZeroScore ? "0.3" : "1"}
           >
             75%
           </text>
@@ -241,7 +251,7 @@ function EnhancedGraphLine({ score }: { score: number }) {
             stroke="#f59e0b"
             strokeWidth="1.5"
             strokeDasharray="3 3"
-            opacity="0.4"
+            opacity={isZeroScore ? "0.2" : "0.4"}
           />
           <text 
             x={w - 20} 
@@ -251,6 +261,7 @@ function EnhancedGraphLine({ score }: { score: number }) {
             fontWeight="500" 
             fontFamily="system-ui"
             textAnchor="start"
+            opacity={isZeroScore ? "0.3" : "1"}
           >
             50%
           </text>
@@ -264,7 +275,7 @@ function EnhancedGraphLine({ score }: { score: number }) {
             stroke="#ef4444"
             strokeWidth="1.5"
             strokeDasharray="3 3"
-            opacity="0.4"
+            opacity={isZeroScore ? "0.2" : "0.4"}
           />
           <text 
             x={w - 20} 
@@ -274,6 +285,7 @@ function EnhancedGraphLine({ score }: { score: number }) {
             fontWeight="500" 
             fontFamily="system-ui"
             textAnchor="start"
+            opacity={isZeroScore ? "0.3" : "1"}
           >
             25%
           </text>
@@ -331,24 +343,26 @@ function EnhancedGraphLine({ score }: { score: number }) {
           opacity="0.3"
         />
 
-        {/* Trending line indicator */}
-        <g opacity="0.3">
-          <line
-            x1={pad}
-            y1={h - pad}
-            x2={w - 82}
-            y2={pad}
-            stroke="url(#trendLineGrad)"
-            strokeWidth="1"
-            strokeDasharray="8 6"
-            strokeLinecap="round"
-          />
-          <polygon
-            points={`${w - 82 - 2},${pad + 6} ${w - 82 + 6},${pad} ${w - 82 - 2},${pad - 6}`}
-            fill="#7c3aed"
-            opacity="0.4"
-          />
-        </g>
+        {/* Trending line indicator - only show if score > 0 */}
+        {!isZeroScore && (
+          <g opacity="0.3">
+            <line
+              x1={pad}
+              y1={h - pad}
+              x2={w - 82}
+              y2={pad}
+              stroke="url(#trendLineGrad)"
+              strokeWidth="1"
+              strokeDasharray="8 6"
+              strokeLinecap="round"
+            />
+            <polygon
+              points={`${w - 82 - 2},${pad + 6} ${w - 82 + 6},${pad} ${w - 82 - 2},${pad - 6}`}
+              fill="#7c3aed"
+              opacity="0.4"
+            />
+          </g>
+        )}
 
         {/* Area under curve */}
         <path d={areaPath} fill="url(#enhancedAreaGrad)" />
@@ -357,14 +371,15 @@ function EnhancedGraphLine({ score }: { score: number }) {
         <path
           d={linePath}
           fill="none"
-          stroke="url(#enhancedLineGrad)"
-          strokeWidth="3.5"
+          stroke={isZeroScore ? "#94a3b8" : "url(#enhancedLineGrad)"}
+          strokeWidth={isZeroScore ? "2" : "3.5"}
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeDasharray={2000}
           strokeDashoffset={animated ? 0 : 2000}
           style={{ transition: "stroke-dashoffset 2s cubic-bezier(0.34,1.56,0.64,1)" }}
-          filter="url(#glow)"
+          filter={isZeroScore ? "none" : "url(#glow)"}
+          opacity={isZeroScore ? "0.4" : "1"}
         />
         
         {/* Data points */}
@@ -372,6 +387,26 @@ function EnhancedGraphLine({ score }: { score: number }) {
           const isLast = i === pts.length - 1;
           const isMid = i > 2 && i < pts.length - 2;
           const isFirst = i === 0;
+          
+          // If score is 0, show minimal dots
+          if (isZeroScore) {
+            return (
+              <g key={i}>
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={isLast ? 4 : isFirst ? 3 : 2.5}
+                  fill={isLast ? "#94a3b8" : "#cbd5e1"}
+                  opacity={animated ? (isLast ? 0.6 : 0.3) : 0}
+                  style={{
+                    transition: `all 0.4s ease ${0.8 + i * 0.05}s`,
+                    transform: animated ? "scale(1)" : "scale(0)"
+                  }}
+                />
+              </g>
+            );
+          }
+          
           return (
             <g key={i}>
               {isLast && animated && (
@@ -408,7 +443,7 @@ function EnhancedGraphLine({ score }: { score: number }) {
         })}
         
         {/* Tooltip */}
-        {tooltip && (
+        {tooltip && !isZeroScore && (
           <g>
             <line
               x1={tooltip.x}
@@ -462,10 +497,10 @@ function EnhancedGraphLine({ score }: { score: number }) {
               y={pts[pts.length-1].y + 4}
               fontSize="14" 
               fontWeight="900" 
-              fill="#7c3aed"
+              fill={isZeroScore ? "#94a3b8" : "#7c3aed"}
               style={{ 
                 fontFamily: "Plus Jakarta Sans, sans-serif",
-                textShadow: "0 4px 12px rgba(124,58,237,0.3)"
+                textShadow: isZeroScore ? "none" : "0 4px 12px rgba(124,58,237,0.3)"
               }}
             >
               {Math.round(pts[pts.length-1].value)}%
@@ -476,11 +511,11 @@ function EnhancedGraphLine({ score }: { score: number }) {
 
       {/* Milestone message displayed below the graph */}
       <div className="absolute bottom-0 left-0 right-0 flex justify-center">
-        <div className="bg-gradient-to-r from-amber-50 to-violet-50 border border-amber-200/50 rounded-full px-4 py-1.5 shadow-sm">
-          <p className="text-xs font-medium text-slate-700 flex items-center gap-2">
-            <span className="text-amber-500">✦</span>
+        <div className={`bg-gradient-to-r ${isZeroScore ? 'from-slate-50 to-slate-100' : 'from-amber-50 to-violet-50'} border ${isZeroScore ? 'border-slate-200/50' : 'border-amber-200/50'} rounded-full px-4 py-1.5 shadow-sm`}>
+          <p className={`text-xs font-medium flex items-center gap-2 ${isZeroScore ? 'text-slate-500' : 'text-slate-700'}`}>
+            <span className={isZeroScore ? 'text-slate-400' : 'text-amber-500'}>✦</span>
             {milestoneMessage}
-            <span className="text-amber-500">✦</span>
+            <span className={isZeroScore ? 'text-slate-400' : 'text-amber-500'}>✦</span>
           </p>
         </div>
       </div>
@@ -640,7 +675,7 @@ export default function HeroSection({ user, score }: { user: UserData | null; sc
             {/* Graph Container */}
             <div className="relative w-full h-full flex items-center justify-center p-4 sm:p-6">
               <div className="w-full h-full">
-                <EnhancedGraphLine score={score || 50} />
+                <EnhancedGraphLine score={score} />
               </div>
             </div>
           </div>
