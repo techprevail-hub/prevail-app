@@ -337,6 +337,78 @@ function getInitials(name: string) {
   return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
 }
 
+// ─── Actions Component ──────────────────────────────────────────────────
+function InvitationActions({ 
+  invitation, 
+  onEdit, 
+  onDelete,
+  onResend,
+  isDeleting,
+  isResending,
+}: { 
+  invitation: StudentInvitation;
+  onEdit: (invitation: StudentInvitation) => void;
+  onDelete: (id: string) => void;
+  onResend: (id: string) => void;
+  isDeleting: boolean;
+  isResending: boolean;
+}) {
+  const isPending = invitation.status === 'pending';
+
+  if (isPending) {
+    return (
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-lg hover:bg-violet-100 text-slate-500 hover:text-violet-700 transition-all"
+          onClick={() => onEdit(invitation)}
+          title="Edit Invitation"
+        >
+          <Pencil className="w-4 h-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-lg hover:bg-blue-100 text-slate-500 hover:text-blue-700 transition-all"
+          onClick={() => onResend(invitation.id)}
+          disabled={isResending}
+          title="Resend Invitation"
+        >
+          {isResending ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Send className="w-4 h-4" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-lg hover:bg-red-100 text-slate-500 hover:text-red-700 transition-all"
+          onClick={() => onDelete(invitation.id)}
+          disabled={isDeleting}
+          title="Delete Invitation"
+        >
+          {isDeleting ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Trash2 className="w-4 h-4" />
+          )}
+        </Button>
+      </div>
+    );
+  }
+
+  // For non-pending statuses, show a view-only indicator
+  return (
+    <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200">
+      <CheckCircle className="w-3 h-3 mr-1" />
+      {invitation.status === 'accepted' ? 'Accepted' : 
+       invitation.status === 'expired' ? 'Expired' : 'Cancelled'}
+    </Badge>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────
 export default function StudentInvitationsPage() {
   const router = useRouter();
@@ -349,6 +421,8 @@ export default function StudentInvitationsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   // Sort state
   const [sort, setSort] = useState<{ column: string | null; direction: "asc" | "desc" | null }>({
@@ -443,33 +517,41 @@ export default function StudentInvitationsPage() {
     setIsInviteDialogOpen(true);
   };
 
-  const handleCancelClick = (id: string) => {
-    setSelectedInvitationId(id);
-    setIsConfirmDialogOpen(true);
-  };
-
-  const handleConfirmCancel = async () => {
-    if (!selectedInvitationId) return;
-
-    try {
-      await api.patch(API_ENDPOINTS.CANCEL_INVITATION(selectedInvitationId));
-      toast.success("Invitation cancelled successfully");
-      await fetchInvitations();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || error.message || "Failed to cancel invitation");
-    } finally {
-      setIsConfirmDialogOpen(false);
-      setSelectedInvitationId(null);
-    }
-  };
-
+  // ─── Resend Handler ─────────────────────────────────────────────────────
   const handleResend = async (id: string) => {
+    setResendingId(id);
     try {
       await api.post(API_ENDPOINTS.RESEND_INVITATION(id), {});
       toast.success("Invitation resent successfully");
       await fetchInvitations();
     } catch (error: any) {
       toast.error(error.response?.data?.message || error.message || "Failed to resend invitation");
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  // ─── Delete Handler ─────────────────────────────────────────────────────
+  const handleDeleteClick = (id: string) => {
+    setSelectedInvitationId(id);
+    setIsConfirmDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedInvitationId) return;
+
+    setDeletingId(selectedInvitationId);
+    try {
+      // Call the cancel invitation API (which acts as delete for pending invitations)
+      await api.patch(API_ENDPOINTS.CANCEL_INVITATION(selectedInvitationId));
+      toast.success("Invitation deleted successfully");
+      await fetchInvitations();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || "Failed to delete invitation");
+    } finally {
+      setDeletingId(null);
+      setIsConfirmDialogOpen(false);
+      setSelectedInvitationId(null);
     }
   };
 
@@ -487,7 +569,7 @@ export default function StudentInvitationsPage() {
     { key: "batch", label: "Batch", sortable: true },
     { key: "status", label: "Status", sortable: false },
     { key: "created_at", label: "Invited", sortable: true },
-    { key: "actions", label: "", sortable: false, width: "w-12" },
+    { key: "actions", label: "Actions", sortable: false, width: "w-36" },
   ];
 
   // ─── Render ─────────────────────────────────────────────────────────────
@@ -584,7 +666,7 @@ export default function StudentInvitationsPage() {
                   <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
                   <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
                   <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-7 w-7 rounded" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-8 w-28 rounded" /></td>
                 </tr>
               ))}
 
@@ -635,7 +717,7 @@ export default function StudentInvitationsPage() {
                   {/* Batch */}
                   <td className="px-4 py-3 text-slate-600">{invitation.batch}</td>
 
-                  {/* Status */}
+                  {/* Status - Only show status badge here */}
                   <td className="px-4 py-3">
                     <StatusBadge status={invitation.status} />
                   </td>
@@ -650,50 +732,16 @@ export default function StudentInvitationsPage() {
                     </p>
                   </td>
 
-                  {/* Actions */}
+                  {/* Actions - Edit, Resend, and Delete icons */}
                   <td className="px-4 py-3">
-                    {invitation.status === 'pending' && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-violet-100">
-                            <MoreVertical className="w-4 h-4 text-slate-500" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem onClick={() => handleEdit(invitation)} className="gap-2 cursor-pointer">
-                            <Pencil className="w-3.5 h-3.5" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleResend(invitation.id)} className="gap-2 cursor-pointer">
-                            <Send className="w-3.5 h-3.5" /> Resend
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => handleCancelClick(invitation.id)} 
-                            className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
-                          >
-                            <XCircle className="w-3.5 h-3.5" /> Cancel
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                    {invitation.status === 'accepted' && (
-                      <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Accepted
-                      </Badge>
-                    )}
-                    {invitation.status === 'expired' && (
-                      <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        Expired
-                      </Badge>
-                    )}
-                    {invitation.status === 'cancelled' && (
-                      <Badge variant="outline" className="bg-slate-100 text-slate-500 border-slate-200">
-                        <XCircle className="w-3 h-3 mr-1" />
-                        Cancelled
-                      </Badge>
-                    )}
+                    <InvitationActions
+                      invitation={invitation}
+                      onEdit={handleEdit}
+                      onDelete={handleDeleteClick}
+                      onResend={handleResend}
+                      isDeleting={deletingId === invitation.id}
+                      isResending={resendingId === invitation.id}
+                    />
                   </td>
                 </tr>
               ))}
@@ -774,10 +822,10 @@ export default function StudentInvitationsPage() {
       <ConfirmationDialog
         open={isConfirmDialogOpen}
         onOpenChange={setIsConfirmDialogOpen}
-        onConfirm={handleConfirmCancel}
-        title="Cancel Invitation"
-        description="Are you sure you want to cancel this invitation? This action cannot be undone."
-        confirmText="Yes, Cancel Invitation"
+        onConfirm={handleConfirmDelete}
+        title="Delete Invitation"
+        description="Are you sure you want to delete this invitation? This action cannot be undone."
+        confirmText="Yes, Delete Invitation"
       />
     </div>
   );
