@@ -26,11 +26,12 @@ export default function LoginPage() {
     }
   }, []);
 
-  // ─── NEW: useEffect for Invitation Token (no useSearchParams) ──────────
+  // ─── Updated: useEffect for Invitation Token ──────────────────────────
   useEffect(() => {
     // Read token directly from URL using window.location
     const urlParams = new URLSearchParams(window.location.search);
-    const inviteToken = urlParams.get("inviteToken");
+    // ✅ FIXED: Changed from "inviteToken" to "token" to match the URL parameter
+    const inviteToken = urlParams.get("token");
 
     if (inviteToken) {
       localStorage.setItem("inviteToken", inviteToken);

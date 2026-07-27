@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { api } from "@/utils/apiServices";
 
 export default function CallbackPage() {
   const router = useRouter();
@@ -55,9 +56,45 @@ export default function CallbackPage() {
         localStorage.setItem("userEmail", user.email || "");
         localStorage.setItem("userId", user.id);
 
-        // ─── NEW: Check if user came from an invitation ──────────────
+        // ─── CHECK: If user came from an invitation ──────────────────
         const inviteToken = localStorage.getItem("inviteToken");
         console.log("Invite Token:", inviteToken);
+
+        // ─── FIX 1 & 2: Process invitation if token exists ────────────
+        if (inviteToken) {
+          try {
+            console.log("Processing invitation token...");
+            
+            // Call the accept invitation API
+            const response = await api.post('/api/student-invitations/accept', {
+              token: inviteToken,
+              userId: user.id
+            });
+
+            console.log("Invitation acceptance response:", response);
+
+            if (response.success) {
+              console.log("Invitation accepted successfully!");
+              
+              // ─── FIX 3: Remove the token after successful acceptance ──
+              localStorage.removeItem("inviteToken");
+              console.log("Invitation token removed from localStorage");
+
+              // ─── FIX 4: Redirect directly to student dashboard ──────
+              setRedirectTo("/dashboard/seeker");
+              return; // ✅ IMPORTANT: Stop execution here
+            } else {
+              console.error("Invitation acceptance failed:", response.message);
+              // Continue with normal flow if invitation acceptance fails
+            }
+          } catch (inviteError) {
+            console.error("Error accepting invitation:", inviteError);
+            // Continue with normal flow if invitation acceptance fails
+            // Don't block the user from logging in
+          }
+        }
+
+        // ─── Normal Flow (Continue only if no invitation or invitation failed) ──
 
         // Check if user exists in database
         const { data: existingUser, error: fetchError } = await supabase
