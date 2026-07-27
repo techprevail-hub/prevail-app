@@ -25,7 +25,7 @@ export default function CallbackPage() {
       try {
         console.log("Starting auth callback...");
 
-        // Get the current session
+        // ─── Step 1: Get the current session ──────────────────────────
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError || !session?.user) {
@@ -43,7 +43,7 @@ export default function CallbackPage() {
         
         console.log("User authenticated:", user.id);
 
-        // Get user name from metadata
+        // ─── Step 2: Get user name from metadata ──────────────────────
         const userName =
           user.user_metadata?.full_name ||
           user.user_metadata?.name ||
@@ -56,19 +56,53 @@ export default function CallbackPage() {
         localStorage.setItem("userEmail", user.email || "");
         localStorage.setItem("userId", user.id);
 
-        // ─── CHECK: If user came from an invitation ──────────────────
+        // ─── Step 3: Check if user exists in database ──────────────────
+        const { data: existingUser, error: fetchError } = await supabase
+          .from("users")
+          .select("id, role")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (fetchError) {
+          console.error("Error checking existing user:", fetchError);
+        }
+
+        // ─── Step 4: If user doesn't exist, create them ──────────────
+        if (!existingUser) {
+          console.log("Creating new user...");
+          const { error: insertError } = await supabase
+            .from("users")
+            .insert([
+              {
+                id: user.id,
+                email: user.email,
+                name: userName,
+                role: null,
+              },
+            ]);
+
+          if (insertError) {
+            console.error("Insert error:", insertError);
+            setError(insertError.message);
+            return;
+          }
+
+          console.log("User created successfully");
+        } else {
+          console.log("Existing user found:", existingUser);
+        }
+
+        // ─── Step 5: Check for invitation token ──────────────────────
         const inviteToken = localStorage.getItem("inviteToken");
         console.log("Invite Token:", inviteToken);
 
-        // ─── FIX 1 & 2: Process invitation if token exists ────────────
         if (inviteToken) {
           try {
             console.log("Processing invitation token...");
             
-            // Call the accept invitation API
+            // ✅ Call the accept invitation API (without userId - backend gets from req.user)
             const response = await api.post('/api/role-institute/student-invitations/accept', {
               token: inviteToken,
-              userId: user.id
             });
 
             console.log("Invitation acceptance response:", response);
@@ -76,13 +110,13 @@ export default function CallbackPage() {
             if (response.success) {
               console.log("Invitation accepted successfully!");
               
-              // ─── FIX 3: Remove the token after successful acceptance ──
+              // Remove the token after successful acceptance
               localStorage.removeItem("inviteToken");
               console.log("Invitation token removed from localStorage");
 
-              // ─── FIX 4: Redirect directly to student dashboard ──────
+              // Redirect directly to student dashboard
               setRedirectTo("/dashboard/seeker");
-              return; // ✅ IMPORTANT: Stop execution here
+              return; // ✅ Stop execution here
             } else {
               console.error("Invitation acceptance failed:", response.message);
               // Continue with normal flow if invitation acceptance fails
@@ -94,23 +128,10 @@ export default function CallbackPage() {
           }
         }
 
-        // ─── Normal Flow (Continue only if no invitation or invitation failed) ──
-
-        // Check if user exists in database
-        const { data: existingUser, error: fetchError } = await supabase
-          .from("users")
-          .select("id, role")
-          .eq("id", user.id)
-          .maybeSingle();
-
-        if (fetchError) {
-          console.error("Error checking existing user:", fetchError);
-        }
-
-        // If user exists
+        // ─── Step 6: Normal flow - Check user role and redirect ──────
+        
+        // If user exists (or was just created)
         if (existingUser) {
-          console.log("Existing user found:", existingUser);
-          
           // If user already has a role
           if (existingUser.role) {
             console.log("User has role:", existingUser.role);
@@ -155,34 +176,12 @@ export default function CallbackPage() {
             setRedirectTo("/select-role");
             return;
           }
+        } else {
+          // This is a new user (just inserted)
+          console.log("New user created, redirecting to select-role");
+          localStorage.setItem("userId", user.id);
+          setRedirectTo("/select-role");
         }
-
-        // New user - insert into database
-        console.log("Creating new user...");
-        const { error: insertError } = await supabase
-          .from("users")
-          .insert([
-            {
-              id: user.id,
-              email: user.email,
-              name: userName,
-              role: null,
-            },
-          ]);
-
-        if (insertError) {
-          console.error("Insert error:", insertError);
-          setError(insertError.message);
-          return;
-        }
-
-        console.log("User created successfully");
-
-        // Store userId in localStorage for select-role page
-        localStorage.setItem("userId", user.id);
-        
-        // Redirect to select role page for new users
-        setRedirectTo("/select-role");
         
       } catch (err) {
         console.error("Auth callback error:", err);
