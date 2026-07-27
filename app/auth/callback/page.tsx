@@ -66,7 +66,7 @@ export default function CallbackPage() {
             console.log("Processing invitation token...");
             
             // Call the accept invitation API
-            const response = await api.post('/api/student-invitations/accept', {
+            const response = await api.post('/api/role-institute/student-invitations/accept', {
               token: inviteToken,
               userId: user.id
             });
