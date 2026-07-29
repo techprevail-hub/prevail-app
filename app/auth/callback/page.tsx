@@ -94,31 +94,68 @@ export default function CallbackPage() {
 
         // ─── Step 5: Check for invitation token ──────────────────────
         const inviteToken = localStorage.getItem("inviteToken");
-        console.log("Invite Token:", inviteToken);
+        const inviteType = localStorage.getItem("inviteType");
 
-        if (inviteToken) {
+        console.log("Invite Token:", inviteToken);
+        console.log("Invite Type:", inviteType);
+
+        if (inviteToken && inviteType) {
           try {
-            console.log("Processing invitation token...");
-            
-            // ✅ Call the accept invitation API (without userId - backend gets from req.user)
-            const response = await api.post('/api/role-institute/student-invitations/accept', {
-              token: inviteToken,
-            });
+            console.log("Processing invitation...");
+
+            let response;
+
+            // ─── Step 5a: Call the appropriate API based on type ──────
+            if (inviteType === "student") {
+              console.log("Accepting student invitation...");
+              response = await api.post(
+                "/api/role-institute/student-invitations/accept",
+                {
+                  token: inviteToken,
+                }
+              );
+            } else if (inviteType === "coach") {
+              console.log("Accepting coach invitation...");
+              response = await api.post(
+                "/api/role-institute/coach-invitations/accept",
+                {
+                  token: inviteToken,
+                }
+              );
+            } else {
+              console.warn(`Unknown invitation type: ${inviteType}, defaulting to student`);
+              // Default to student for backward compatibility
+              response = await api.post(
+                "/api/role-institute/student-invitations/accept",
+                {
+                  token: inviteToken,
+                }
+              );
+            }
 
             console.log("Invitation acceptance response:", response);
 
-            if (response.success) {
-              console.log("Invitation accepted successfully!");
+            // ─── Step 5b: Handle successful acceptance ────────────────
+            if (response?.success) {
+              console.log(`Invitation accepted successfully for ${inviteType}!`);
               
-              // Remove the token after successful acceptance
+              // Remove both token and type after successful acceptance
               localStorage.removeItem("inviteToken");
-              console.log("Invitation token removed from localStorage");
+              localStorage.removeItem("inviteType");
+              console.log("Invitation token and type removed from localStorage");
 
-              // Redirect directly to student dashboard
-              setRedirectTo("/dashboard/seeker");
+              // ─── Step 5c: Redirect based on invitation type ──────────
+              if (inviteType === "student") {
+                setRedirectTo("/dashboard/seeker");
+              } else if (inviteType === "coach") {
+                setRedirectTo("/dashboard/coach");
+              } else {
+                // Fallback for unknown type
+                setRedirectTo("/dashboard/seeker");
+              }
               return; // ✅ Stop execution here
             } else {
-              console.error("Invitation acceptance failed:", response.message);
+              console.error("Invitation acceptance failed:", response?.message || "Unknown error");
               // Continue with normal flow if invitation acceptance fails
             }
           } catch (inviteError) {
@@ -126,6 +163,8 @@ export default function CallbackPage() {
             // Continue with normal flow if invitation acceptance fails
             // Don't block the user from logging in
           }
+        } else {
+          console.log("No invitation token or type found in localStorage");
         }
 
         // ─── Step 6: Normal flow - Check user role and redirect ──────

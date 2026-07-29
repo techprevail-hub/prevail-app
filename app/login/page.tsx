@@ -30,19 +30,43 @@ export default function LoginPage() {
   useEffect(() => {
     // Read token directly from URL using window.location
     const urlParams = new URLSearchParams(window.location.search);
-    // ✅ FIXED: Changed from "inviteToken" to "token" to match the URL parameter
     const inviteToken = urlParams.get("token");
+    const inviteType = urlParams.get("type");
 
+    // Save token if present
     if (inviteToken) {
       localStorage.setItem("inviteToken", inviteToken);
-      console.log("Invitation Token Saved:", inviteToken);
+      console.log("✅ Invitation Token Saved:", inviteToken);
+      
+      // Save type only if present - NO DEFAULT VALUE
+      if (inviteType) {
+        localStorage.setItem("inviteType", inviteType);
+        console.log("✅ Invitation Type Saved:", inviteType);
+      } else {
+        // No type provided - don't set a default
+        // The callback will check for both token AND type
+        console.log("ℹ️ No invitation type provided - waiting for type parameter");
+      }
       
       // Optional: Clean the URL to remove the token parameter
       // This prevents the token from being visible in the URL after saving
       if (window.history && window.history.replaceState) {
-        const cleanUrl = window.location.pathname;
-        window.history.replaceState({}, document.title, cleanUrl);
-        console.log("URL cleaned, token removed from address bar");
+        const cleanUrl = window.location.pathname + window.location.search.replace(/[?&]token=[^&]*/, '').replace(/[?&]type=[^&]*/, '');
+        // Clean up any leftover ? or & characters
+        const finalUrl = cleanUrl.replace(/[?&]$/, '');
+        window.history.replaceState({}, document.title, finalUrl || window.location.pathname);
+        console.log("✅ URL cleaned, token and type removed from address bar");
+      }
+    } else {
+      // No token in URL, check if we need to clear any existing token
+      console.log("ℹ️ No invitation token found in URL");
+      
+      // Clean up any stale invitation data if no token is present
+      // This prevents issues with leftover data from previous sessions
+      if (localStorage.getItem("inviteToken")) {
+        localStorage.removeItem("inviteToken");
+        localStorage.removeItem("inviteType");
+        console.log("🧹 Cleaned up stale invitation data");
       }
     }
   }, []);
