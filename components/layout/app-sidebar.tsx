@@ -88,23 +88,23 @@ function getNavItems(role: string): NavItem[] {
   return NAV_CONFIG[role] ?? NAV_CONFIG.student;
 }
 
-// Read role from localStorage synchronously so there's zero loading flash
-function getInitialRole(): string {
-  if (typeof window === "undefined") return "student";
-  return localStorage.getItem("userRole") ?? "student";
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AppSidebar() {
   const pathname = usePathname();
 
-  // Initialise from localStorage immediately — no flash, no spinner
-  const [userRole, setUserRole] = useState<string>(getInitialRole);
+  // ✅ FIX: Start with empty string to avoid hydration mismatch
+  const [userRole, setUserRole] = useState<string>("");
 
   useEffect(() => {
     async function syncRole() {
       try {
+        // ✅ Read from localStorage first
+        const storedRole = localStorage.getItem("userRole");
+        if (storedRole) {
+          setUserRole(storedRole);
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) return;
 
@@ -148,6 +148,33 @@ export default function AppSidebar() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // ✅ Don't render navigation until we know the role
+  if (!userRole) {
+    return (
+      <aside className="w-[220px] min-w-[220px] h-screen bg-white border-r border-gray-100 flex flex-col sticky top-0 overflow-hidden shadow-sm">
+        {/* Logo */}
+        <div className="px-4 py-5 border-b border-gray-100">
+          <div className="relative w-[150px] h-[48px]">
+            <Image
+              src="/Prevail-Logo-light.png"
+              alt="Prevail AI"
+              fill
+              sizes="150px"
+              className="object-contain object-left"
+              priority
+            />
+          </div>
+          <p className="text-[8px] font-bold tracking-[0.18em] text-gray-400 mt-2 uppercase">
+            Career Intelligence
+          </p>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </aside>
+    );
+  }
+
   const navItems = getNavItems(userRole);
 
   return (
@@ -161,6 +188,7 @@ export default function AppSidebar() {
               src="/Prevail-Logo-light.png"
               alt="Prevail AI"
               fill
+              sizes="150px"
               className="object-contain object-left"
               priority
             />

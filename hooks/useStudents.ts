@@ -4,6 +4,7 @@ import studentService from "@/services/student.service";
 
 import {
   Student,
+  StudentCounts,
   StudentQueryParams,
 } from "@/types/student";
 
@@ -18,12 +19,18 @@ const initialPagination: Pagination = {
   hasPrevious: false,
 };
 
+const initialCounts: StudentCounts = {
+  total: 0,
+  pending: 0,
+  accepted: 0,
+  cancelled: 0,
+  expired: 0,
+};
+
 const initialParams: StudentQueryParams = {
   page: 1,
   limit: 10,
   search: "",
-  department: "",
-  semester: undefined,
   status: "",
   sortBy: "created_at",
   sortOrder: "desc",
@@ -31,6 +38,8 @@ const initialParams: StudentQueryParams = {
 
 export default function useStudents() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [counts, setCounts] = useState<StudentCounts>(initialCounts);
+
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
@@ -40,7 +49,7 @@ export default function useStudents() {
   const [params, setParams] =
     useState<StudentQueryParams>(initialParams);
 
-  // Fetch Students
+  // Fetch Student Invitations
   const fetchStudents = useCallback(async () => {
     try {
       setLoading(true);
@@ -49,18 +58,15 @@ export default function useStudents() {
 
       setStudents(response.data);
 
+      setCounts(response.counts);
+
       setPagination(response.pagination);
 
       setError("");
-
     } catch (err: any) {
-
       setError(err?.message || "Something went wrong");
-
     } finally {
-
       setLoading(false);
-
     }
   }, [params]);
 
@@ -94,24 +100,6 @@ export default function useStudents() {
     }));
   };
 
-  // Department Filter
-  const changeDepartment = (department: string) => {
-    setParams((prev) => ({
-      ...prev,
-      page: 1,
-      department,
-    }));
-  };
-
-  // Semester Filter
-  const changeSemester = (semester?: number) => {
-    setParams((prev) => ({
-      ...prev,
-      page: 1,
-      semester,
-    }));
-  };
-
   // Status Filter
   const changeStatus = (status: string) => {
     setParams((prev) => ({
@@ -137,6 +125,8 @@ export default function useStudents() {
   return {
     students,
 
+    counts,
+
     loading,
 
     error,
@@ -152,10 +142,6 @@ export default function useStudents() {
     changePageSize,
 
     changeSearch,
-
-    changeDepartment,
-
-    changeSemester,
 
     changeStatus,
 

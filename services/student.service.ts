@@ -1,38 +1,56 @@
-import { api } from "@/utils/apiServices";
+import {api} from "@/utils/apiServices";
 import {
+  Student,
   StudentQueryParams,
   StudentResponse,
-  Student,
 } from "@/types/student";
 
 class StudentService {
-
-  // Get All Students (Server-side Pagination)
+  // Get all student invitations
   async getStudents(
     params: StudentQueryParams
   ): Promise<StudentResponse> {
-    return await api.get("/api/student", params);
+    return await api.get(
+      "/api/role-institute/student-invitations",
+      params
+    );
   }
 
-  // Get Single Student
+  // Get single invitation
   async getStudentById(id: string): Promise<Student> {
-    return await api.get(`/api/student/${id}`);
+    return await api.get(
+      `/api/role-institute/student-invitations/${id}`
+    );
   }
 
-  // Create Student
-  async createStudent(data: Partial<Student>) {
-    return await api.post("/api/student", data);
+  // Create invitation
+  async createStudentInvitation(data: Partial<Student>) {
+    return await api.post(
+      "/api/role-institute/student-invitations",
+      data
+    );
   }
 
-  // Update Student
-  async updateStudent(id: string, data: Partial<Student>) {
-    return await api.put(`/api/student/${id}`, data);
+  // Update invitation
+  async updateStudentInvitation(
+    id: string,
+    data: Partial<Student>
+  ) {
+    return await api.put(
+      `/api/role-institute/student-invitations/${id}`,
+      data
+    );
   }
 
-  // Delete Student
-  async deleteStudent(id: string) {
-    return await api.delete(`/api/student/${id}`);
+  // Cancel invitation
+  async cancelInvitation(id: string) {
+    return await api.patch(
+      `/api/role-institute/student-invitations/${id}/cancel`,
+      {}
+    );
   }
 }
 
-export default new StudentService();
+const studentService = new StudentService();
+
+export default studentService;

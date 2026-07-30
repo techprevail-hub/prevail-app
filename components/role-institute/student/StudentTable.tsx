@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown,
   SearchX,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,7 +21,16 @@ import { Student } from "@/types/student";
 import { Pagination } from "@/types/pagination";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface Column {
+  key: string;
+  label: string;
+  sortable?: boolean;
+  width?: string;
+}
+
 interface StudentTableProps {
+  columns: Column[];
   students: Student[];
   loading: boolean;
   pagination: Pagination;
@@ -35,80 +44,32 @@ interface StudentTableProps {
 
 type SortState = { column: string | null; direction: "asc" | "desc" | null };
 
-// ─── Column config ────────────────────────────────────────────────────────────
-const columns = [
-  { key: "profile_image",     label: "",            sortable: false, width: "w-14"   },
-  { key: "student_id",        label: "Student ID",  sortable: true              },
-  { key: "full_name",         label: "Name",        sortable: true              },
-  { key: "email",             label: "Email",       sortable: true              },
-  { key: "department",        label: "Department",  sortable: true              },
-  { key: "semester",          label: "Semester",    sortable: true,  width: "w-24" },
-  { key: "readiness_score",   label: "Readiness",   sortable: true,  width: "w-32" },
-  { key: "placement_status",  label: "Placement",   sortable: false             },
-  { key: "status",            label: "Status",      sortable: false             },
-  { key: "actions",           label: "",            sortable: false, width: "w-12" },
-];
+// ─── Status Styles ──────────────────────────────────────────────────────────
 
-// ─── Visual helpers ───────────────────────────────────────────────────────────
 const statusStyles: Record<string, string> = {
-  Active:   "bg-emerald-100 text-emerald-700",
-  Inactive: "bg-slate-100 text-slate-500",
+  pending: "bg-amber-50 text-amber-700 border-amber-200",
+  accepted: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  cancelled: "bg-slate-100 text-slate-600 border-slate-200",
+  expired: "bg-red-50 text-red-700 border-red-200",
 };
 
-const placementStyles: Record<string, string> = {
-  Placed:       "bg-violet-100 text-violet-700",
-  "Not Placed": "bg-amber-100 text-amber-700",
-};
-
-function readinessColor(score: number) {
-  if (score >= 75) return { bar: "bg-emerald-500", text: "text-emerald-700" };
-  if (score >= 50) return { bar: "bg-amber-500",   text: "text-amber-700"   };
-  return { bar: "bg-rose-500", text: "text-rose-700" };
-}
+// ─── Helper Functions ──────────────────────────────────────────────────────
 
 function initials(name: string) {
   if (!name) return "?";
   return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
 }
 
-// ─── Get profile image URL from email using Gravatar ───────────────────────
-function getProfileImageUrl(email: string, size: number = 80): string {
-  if (!email) return "";
-  
-  // Trim and lowercase the email
-  const trimmedEmail = email.trim().toLowerCase();
-  
-  // Generate MD5 hash of the email
-  // Note: In production, you might want to use a proper MD5 library
-  // For now, we'll use a simple approach or you can use the crypto API
-  const hash = generateMD5(trimmedEmail);
-  
-  // Gravatar URL
-  return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon&r=g`;
+function formatDate(dateString: string) {
+  if (!dateString) return "-";
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-// ─── Simple MD5 hash generator (for Gravatar) ─────────────────────────────
-function generateMD5(str: string): string {
-  // This is a simple implementation
-  // For production, consider using a proper library like md5 or crypto
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  // Convert to hex string with padding
-  return Math.abs(hash).toString(16).padStart(32, '0');
-}
+// ─── Main Component ──────────────────────────────────────────────────────────
 
-// ─── Alternative: Use a service like UI Avatars for fallback ──────────────
-function getAvatarFallbackUrl(name: string, email: string): string {
-  // UI Avatars API - generates avatar from initials
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6C5CE7&color=fff&size=80&bold=true`;
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
 export default function StudentTable({
+  columns,
   students = [],
   loading,
   pagination,
@@ -135,15 +96,15 @@ export default function StudentTable({
       : <ArrowDown className="w-3.5 h-3.5 text-violet-600" />;
   };
 
-  const totalPages  = pagination?.totalPages ?? 1;
+  const totalPages = pagination?.totalPages ?? 1;
   const currentPage = pagination?.currentPage ?? 1;
-  const pageSize    = pagination?.pageSize ?? 10;
-  const total       = pagination?.totalRecords ?? 0;
-  const hasNext     = pagination?.hasNext ?? false;
+  const pageSize = pagination?.pageSize ?? 10;
+  const total = pagination?.totalRecords ?? 0;
+  const hasNext = pagination?.hasNext ?? false;
   const hasPrevious = pagination?.hasPrevious ?? false;
 
   const startItem = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const endItem   = Math.min(currentPage * pageSize, total);
+  const endItem = Math.min(currentPage * pageSize, total);
 
   // visible page numbers (max 4, centred around current page)
   const pageNumbers = (() => {
@@ -153,6 +114,85 @@ export default function StudentTable({
     start = Math.max(1, end - span + 1);
     return Array.from({ length: Math.max(0, end - start + 1) }, (_, i) => start + i);
   })();
+
+  // ─── Render Cell for a specific column ──────────────────────────────────
+
+  const renderCell = (student: Student, column: Column) => {
+    const { key } = column;
+
+    // Avatar column
+    if (key === "avatar") {
+      return (
+        <Avatar className="w-9 h-9 ring-2 ring-white shadow-sm">
+          <AvatarFallback className="bg-violet-100 text-violet-700 text-xs font-bold">
+            {initials(student.student_name)}
+          </AvatarFallback>
+        </Avatar>
+      );
+    }
+
+    // Status column
+    if (key === "status") {
+      const statusClass = statusStyles[student.status] || statusStyles.pending;
+      const statusEmoji = student.status === 'pending' ? '⏳' : 
+                          student.status === 'accepted' ? '✅' : 
+                          student.status === 'cancelled' ? '❌' : '⚠️';
+      return (
+        <Badge variant="outline" className={`${statusClass} border-0 px-2 py-1 font-medium`}>
+          {statusEmoji} {student.status.charAt(0).toUpperCase() + student.status.slice(1)}
+        </Badge>
+      );
+    }
+
+    // Invited at column
+    if (key === "invited_at") {
+      return (
+        <p className="text-sm text-slate-600">{formatDate(student.invited_at)}</p>
+      );
+    }
+
+    // Actions column
+    if (key === "actions") {
+      const isPending = student.status === 'pending';
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-violet-100">
+              <MoreVertical className="w-4 h-4 text-slate-500" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuItem onClick={() => onView(student)} className="gap-2 cursor-pointer">
+              <Eye className="w-3.5 h-3.5" /> View
+            </DropdownMenuItem>
+            {isPending && (
+              <DropdownMenuItem onClick={() => onEdit(student)} className="gap-2 cursor-pointer">
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </DropdownMenuItem>
+            )}
+            {isPending && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={() => onDelete(student)} 
+                  className="gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Cancel Invitation
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    }
+
+    // Default: render the value directly
+    const value = student[key as keyof Student];
+    if (typeof value === 'string' || typeof value === 'number') {
+      return <span>{value}</span>;
+    }
+    return <span>-</span>;
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -187,16 +227,11 @@ export default function StudentTable({
             {/* ── Loading skeleton rows ── */}
             {loading && Array.from({ length: pageSize || 8 }).map((_, i) => (
               <tr key={`skeleton-${i}`}>
-                <td className="px-4 py-3.5"><Skeleton className="w-9 h-9 rounded-full" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-4 w-16 rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-4 w-32 rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-4 w-40 rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-4 w-28 rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-4 w-10 rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-4 w-20 rounded" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-5 w-20 rounded-full" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-5 w-16 rounded-full" /></td>
-                <td className="px-4 py-3.5"><Skeleton className="h-7 w-7 rounded" /></td>
+                {columns.map((col) => (
+                  <td key={`skeleton-${i}-${col.key}`} className="px-4 py-3.5">
+                    <Skeleton className={`h-4 ${col.width || "w-full"} rounded`} />
+                  </td>
+                ))}
               </tr>
             ))}
 
@@ -208,7 +243,7 @@ export default function StudentTable({
                     <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
                       <SearchX className="w-7 h-7 opacity-50" />
                     </div>
-                    <p className="text-base font-semibold text-slate-600">No Students Found</p>
+                    <p className="text-base font-semibold text-slate-600">No Student Invitations Found</p>
                     <p className="text-sm">Try changing your filters.</p>
                   </div>
                 </td>
@@ -216,79 +251,28 @@ export default function StudentTable({
             )}
 
             {/* ── Data rows ── */}
-            {!loading && students.map(student => {
-              const rc = readinessColor(student.readiness_score ?? 0);
-              // Get profile image from email using Gravatar
-              const profileImage = student.profile_image || getProfileImageUrl(student.email);
-              // Fallback avatar URL if needed
-              const fallbackAvatar = getAvatarFallbackUrl(student.full_name, student.email);
-              
-              return (
-                <tr
-                  key={student.id}
-                  className="group hover:bg-violet-50/40 transition-colors cursor-pointer"
-                  onClick={() => onView(student)}
-                >
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <Avatar className="w-9 h-9 ring-2 ring-white shadow-sm">
-                      <AvatarImage 
-                        src={profileImage || fallbackAvatar} 
-                        alt={student.full_name}
-                      />
-                      <AvatarFallback className="bg-violet-100 text-violet-700 text-xs font-bold">
-                        {initials(student.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
+            {!loading && students.map((student) => (
+              <tr
+                key={student.id}
+                className="group hover:bg-violet-50/40 transition-colors cursor-pointer"
+                onClick={() => onView(student)}
+              >
+                {columns.map((col) => (
+                  <td
+                    key={col.key}
+                    className="px-4 py-3"
+                    onClick={(e) => {
+                      // Prevent click propagation for action buttons
+                      if (col.key === 'actions' || col.key === 'avatar') {
+                        e.stopPropagation();
+                      }
+                    }}
+                  >
+                    {renderCell(student, col)}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-500">{student.student_id}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-800 group-hover:text-violet-700 transition-colors">
-                    {student.full_name}
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">{student.email}</td>
-                  <td className="px-4 py-3 text-slate-600">{student.department}</td>
-                  <td className="px-4 py-3 text-slate-600">Sem {student.semester}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[48px]">
-                        <div className={`h-full rounded-full ${rc.bar} transition-all duration-500`} style={{ width: `${student.readiness_score ?? 0}%` }} />
-                      </div>
-                      <span className={`text-xs font-bold ${rc.text}`}>{student.readiness_score ?? 0}%</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge className={`${placementStyles[student.placement_status] ?? "bg-slate-100 text-slate-600"} border-0 text-xs font-semibold px-2.5`}>
-                      {student.placement_status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge className={`${statusStyles[student.status] ?? "bg-slate-100 text-slate-600"} border-0 text-xs font-semibold px-2.5`}>
-                      {student.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg hover:bg-violet-100">
-                          <MoreVertical className="w-4 h-4 text-slate-500" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-36">
-                        <DropdownMenuItem onClick={() => onView(student)} className="gap-2 cursor-pointer">
-                          <Eye className="w-3.5 h-3.5" /> View
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onEdit(student)} className="gap-2 cursor-pointer">
-                          <Pencil className="w-3.5 h-3.5" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onDelete(student)} className="gap-2 cursor-pointer text-red-600 focus:text-red-600">
-                          <Trash2 className="w-3.5 h-3.5" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              );
-            })}
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -298,7 +282,7 @@ export default function StudentTable({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-t border-slate-100">
           <p className="text-sm text-slate-500">
             Showing <span className="font-semibold text-slate-700">{startItem}–{endItem}</span> of{" "}
-            <span className="font-semibold text-slate-700">{total}</span> Students
+            <span className="font-semibold text-slate-700">{total}</span> Invitations
           </p>
 
           <div className="flex items-center gap-1.5">
