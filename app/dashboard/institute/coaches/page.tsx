@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, Search, X, Pencil, Trash2, Eye, Briefcase, Award } from "lucide-react";
+import { Users, Search, X, Pencil, Trash2, Briefcase, Award } from "lucide-react";
 import { toast } from "sonner";
 
 import coachService from "@/services/coachService";
@@ -68,7 +68,7 @@ export default function CoachPage() {
     { key: "specialization", label: "Specialization" },
     { key: "experience", label: "Experience" },
     { key: "status", label: "Status" },
-    { key: "actions", label: "Actions", width: "w-32" },
+    { key: "actions", label: "Actions", width: "w-24" },
   ];
 
   // ── Fetch Coaches ──
@@ -109,11 +109,6 @@ export default function CoachPage() {
   }, [fetchCoaches]);
 
   // ── Handlers ──
-  const handleView = (coach: Coach) => {
-    setSelectedCoach(coach);
-    setDrawerOpen(true);
-  };
-
   const handleEdit = (coach: Coach) => {
     setEditingCoach(coach);
     setFormOpen(true);
@@ -204,39 +199,30 @@ export default function CoachPage() {
           </Badge>
         </td>
         <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-lg hover:bg-violet-100"
-              onClick={() => handleView(coach)}
-              title="View Coach"
-            >
-              <Eye className="w-4 h-4 text-slate-500" />
-            </Button>
-            {showActions && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-lg hover:bg-blue-100"
-                  onClick={() => handleEdit(coach)}
-                  title="Edit Coach"
-                >
-                  <Pencil className="w-4 h-4 text-slate-500" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-lg hover:bg-red-100"
-                  onClick={() => handleCancelInvitation(coach)}
-                  title="Cancel Invitation"
-                >
-                  <Trash2 className="w-4 h-4 text-slate-500" />
-                </Button>
-              </>
-            )}
-          </div>
+          {showActions ? (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-lg hover:bg-blue-100"
+                onClick={() => handleEdit(coach)}
+                title="Edit Coach"
+              >
+                <Pencil className="w-4 h-4 text-slate-500" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 rounded-lg hover:bg-red-100"
+                onClick={() => handleCancelInvitation(coach)}
+                title="Cancel Invitation"
+              >
+                <Trash2 className="w-4 h-4 text-slate-500" />
+              </Button>
+            </div>
+          ) : (
+            <span className="text-xs text-slate-400">—</span>
+          )}
         </td>
       </>
     );
@@ -476,13 +462,6 @@ export default function CoachPage() {
           </div>
         )}
       </div>
-
-      {/* ── Coach Drawer (view) ── */}
-      <CoachDrawer
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        coach={selectedCoach}
-      />
 
       {/* ── Edit Coach Invitation Dialog (no create) ── */}
       <EntityFormDialog
