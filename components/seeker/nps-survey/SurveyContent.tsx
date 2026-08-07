@@ -39,60 +39,8 @@ export default function SurveyContent() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [authToken, setAuthToken] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
 
-  // Check authentication and get token
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        setAuthLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.access_token) {
-          setAuthToken(session.access_token);
-          setIsAuthenticated(true);
-        } else {
-          // Try to refresh the session
-          const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
-          if (refreshedSession?.access_token) {
-            setAuthToken(refreshedSession.access_token);
-            setIsAuthenticated(true);
-          } else {
-            // Not authenticated - but we can still show the survey if token is valid
-            // The backend will validate the survey token
-            setIsAuthenticated(false);
-            setAuthToken(null);
-          }
-        }
-      } catch (err) {
-        console.error('Auth check error:', err);
-        setIsAuthenticated(false);
-        setAuthToken(null);
-      } finally {
-        setAuthLoading(false);
-      }
-    };
-
-    checkAuth();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.access_token) {
-        setAuthToken(session.access_token);
-        setIsAuthenticated(true);
-      } else {
-        setAuthToken(null);
-        setIsAuthenticated(false);
-      }
-      setAuthLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Validate URL parameters
+  // Validate URL parameters immediately
   useEffect(() => {
     if (!surveyId || !token || !studentId) {
       setError('Invalid survey link. Missing required parameters.');
@@ -105,58 +53,34 @@ export default function SurveyContent() {
       setLoading(false);
       return;
     }
-  }, [surveyId, token, studentId]);
 
-  // Fetch survey data
-  useEffect(() => {
-    if (authLoading) return;
-    
-    if (!surveyId || !token || !studentId || studentId === 'undefined') {
-      return;
-    }
-
+    // If all parameters are valid, fetch the survey
     fetchSurvey();
-  }, [authLoading, surveyId, token, studentId]);
+  }, [surveyId, token, studentId]);
 
   const fetchSurvey = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Build headers - include auth token if available
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      }
+      console.log('🔍 Fetching survey with:', { 
+        surveyId, 
+        token: token ? 'present' : 'missing', 
+        studentId 
+      });
 
-      console.log('🔍 Fetching survey with:', { surveyId, token, studentId, hasAuth: !!authToken });
-
+      // ✅ FIX: Don't use Authorization header with survey token
+      // The survey token is passed as a query parameter, not as a Bearer token
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/role-seeker/nps/surveys/${surveyId}?token=${token}&studentId=${studentId}`,
         {
-          headers,
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
       );
 
       console.log('📡 Response status:', response.status);
-
-      if (response.status === 401) {
-        // Token expired or invalid, try to refresh
-        if (authToken) {
-          const { data: { session } } = await supabase.auth.refreshSession();
-          if (session?.access_token) {
-            setAuthToken(session.access_token);
-            setIsAuthenticated(true);
-            // Retry the request
-            return fetchSurvey();
-          }
-        }
-        // If still unauthorized, the survey token might be invalid
-        throw new Error('Invalid survey link. Please check your email for the correct link.');
-      }
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -222,24 +146,6 @@ export default function SurveyContent() {
       setSubmitting(true);
       setError(null);
 
-      // Build headers
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      // Try to get fresh token if available
-      if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-      } else {
-        // Try to get a new token
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.access_token) {
-          setAuthToken(session.access_token);
-          setIsAuthenticated(true);
-          headers['Authorization'] = `Bearer ${session.access_token}`;
-        }
-      }
-
       const instituteId = survey.institute_id;
       
       if (!instituteId) {
@@ -257,45 +163,17 @@ export default function SurveyContent() {
 
       console.log('📋 Submitting survey:', requestBody);
 
+      // ✅ FIX: Don't use Authorization header for survey submission
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/role-seeker/nps/surveys/${surveyId}/submit`,
         {
           method: 'POST',
-          headers,
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify(requestBody),
         }
       );
-
-      if (response.status === 401) {
-        // Try to refresh and retry
-        const { data: { session } } = await supabase.auth.refreshSession();
-        if (session?.access_token) {
-          setAuthToken(session.access_token);
-          setIsAuthenticated(true);
-          // Retry with new token
-          const retryHeaders = {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          };
-          const retryResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/role-seeker/nps/surveys/${surveyId}/submit`,
-            {
-              method: 'POST',
-              headers: retryHeaders,
-              body: JSON.stringify(requestBody),
-            }
-          );
-          const retryData = await retryResponse.json();
-          if (retryData.success) {
-            setSubmitted(true);
-            return;
-          } else {
-            throw new Error(retryData.message || 'Failed to submit survey');
-          }
-        } else {
-          throw new Error('Your session has expired. Please log in again.');
-        }
-      }
 
       const data = await response.json();
 
@@ -435,7 +313,7 @@ export default function SurveyContent() {
   };
 
   // Loading state
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
