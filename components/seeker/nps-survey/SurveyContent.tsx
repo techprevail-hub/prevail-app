@@ -21,7 +21,7 @@ interface SurveyData {
   total_questions: number;
   expires_at: string;
   submitted: boolean;
-  institute_id: string;  // Make sure this is required
+  institute_id: string;
   student_name?: string;
 }
 
@@ -43,35 +43,46 @@ export default function SurveyContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
-  // Get auth token when user is available
+  // ✅ FIX: Get auth token and check authentication
   useEffect(() => {
-    const getAuthToken = async () => {
-      if (user) {
+    const checkAuth = async () => {
+      if (!authLoading) {
+        // First check if user exists from useAuth
+        if (!user) {
+          // Try to get session directly from supabase
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            // User is authenticated via supabase session
+            setIsAuthenticated(true);
+            setAuthToken(session.access_token);
+            return;
+          }
+          
+          // No user found, redirect to login
+          const redirectUrl = `/dashboard/seeker/nps-survey?surveyId=${surveyId}&token=${token}&studentId=${studentId}`;
+          router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
+          return;
+        }
+
+        // User exists from useAuth, get the token
+        setIsAuthenticated(true);
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) {
           setAuthToken(session.access_token);
-          setIsAuthenticated(true);
         } else {
+          // Try to refresh the session
           const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
           if (refreshedSession?.access_token) {
             setAuthToken(refreshedSession.access_token);
-            setIsAuthenticated(true);
           } else {
+            setError('Unable to get authentication token. Please log in again.');
             setIsAuthenticated(false);
-            setError('Unable to authenticate. Please log in again.');
           }
         }
       }
     };
 
-    if (!authLoading) {
-      if (!user) {
-        const redirectUrl = `/dashboard/seeker/nps-survey?surveyId=${surveyId}&token=${token}&studentId=${studentId}`;
-        router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
-        return;
-      }
-      getAuthToken();
-    }
+    checkAuth();
   }, [user, authLoading, router, surveyId, token, studentId]);
 
   // Validate URL parameters
@@ -110,6 +121,11 @@ export default function SurveyContent() {
         authToken: authToken ? 'present' : 'missing'
       });
 
+      // ✅ FIX: Make sure authToken is valid
+      if (!authToken) {
+        throw new Error('Authentication token is missing. Please log in again.');
+      }
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/role-seeker/nps/surveys/${surveyId}?token=${token}&studentId=${studentId}`,
         {
@@ -123,9 +139,11 @@ export default function SurveyContent() {
       console.log('📡 Response status:', response.status);
 
       if (response.status === 401) {
+        // Token expired, try to refresh
         const { data: { session } } = await supabase.auth.refreshSession();
         if (session?.access_token) {
           setAuthToken(session.access_token);
+          // Retry the request
           return fetchSurvey();
         } else {
           throw new Error('Your session has expired. Please log in again.');
@@ -189,26 +207,20 @@ export default function SurveyContent() {
         throw new Error('Authentication token is missing. Please log in again.');
       }
 
-      // ✅ FIX: Make sure institute_id is provided
-      const institute_id = survey.institute_id || survey.institute_id;
+      // ✅ Use institute_id from survey data
+      const instituteId = survey.institute_id;
       
-      if (!institute_id) {
-        console.error('❌ No institution ID found in survey data:', survey);
+      if (!instituteId) {
+        console.error('❌ No institute_id found in survey data:', survey);
         setError('Survey configuration error. Please contact support.');
         setSubmitting(false);
         return;
       }
 
-      console.log('📋 Submitting with:', {
-        surveyId,
-        studentId: studentId || user.id,
-        institute_id,
-        answersCount: Object.keys(answers).length,
-        token: token ? 'present' : 'missing'
-      });
+      console.log('📋 Submitting with institute_id:', instituteId);
 
       const requestBody = {
-        institute_id: institute_id,
+        institute_id: instituteId,
         studentId: studentId || user.id,
         answers: answers,
         token: token,
@@ -243,7 +255,6 @@ export default function SurveyContent() {
       if (data.success) {
         setSubmitted(true);
       } else {
-        // Show validation errors if any
         if (data.errors) {
           const errorMessages = data.errors.map((err: any) => err.msg).join(', ');
           setError(`Validation failed: ${errorMessages}`);
