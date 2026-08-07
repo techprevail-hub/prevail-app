@@ -189,10 +189,10 @@ export default function SurveyContent() {
         throw new Error('Authentication token is missing. Please log in again.');
       }
 
-      // ✅ FIX: Make sure institutionId is provided
-      const institutionId = survey.institute_id || survey.institute_id;
+      // ✅ FIX: Make sure institute_id is provided
+      const institute_id = survey.institute_id || survey.institute_id;
       
-      if (!institutionId) {
+      if (!institute_id) {
         console.error('❌ No institution ID found in survey data:', survey);
         setError('Survey configuration error. Please contact support.');
         setSubmitting(false);
@@ -202,13 +202,13 @@ export default function SurveyContent() {
       console.log('📋 Submitting with:', {
         surveyId,
         studentId: studentId || user.id,
-        institutionId,
+        institute_id,
         answersCount: Object.keys(answers).length,
         token: token ? 'present' : 'missing'
       });
 
       const requestBody = {
-        institutionId: institutionId,
+        institute_id: institute_id,
         studentId: studentId || user.id,
         answers: answers,
         token: token,
