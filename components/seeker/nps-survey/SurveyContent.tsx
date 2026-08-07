@@ -21,7 +21,7 @@ interface SurveyData {
   total_questions: number;
   expires_at: string;
   submitted: boolean;
-  institute_id: string;  // ✅ Keep as institute_id
+  institute_id: string;  // Make sure this is required
   student_name?: string;
 }
 
@@ -52,7 +52,6 @@ export default function SurveyContent() {
           setAuthToken(session.access_token);
           setIsAuthenticated(true);
         } else {
-          // Try to refresh the session
           const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
           if (refreshedSession?.access_token) {
             setAuthToken(refreshedSession.access_token);
@@ -67,7 +66,6 @@ export default function SurveyContent() {
 
     if (!authLoading) {
       if (!user) {
-        // Redirect to login
         const redirectUrl = `/dashboard/seeker/nps-survey?surveyId=${surveyId}&token=${token}&studentId=${studentId}`;
         router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
         return;
@@ -125,11 +123,9 @@ export default function SurveyContent() {
       console.log('📡 Response status:', response.status);
 
       if (response.status === 401) {
-        // Token expired or invalid, try to refresh
         const { data: { session } } = await supabase.auth.refreshSession();
         if (session?.access_token) {
           setAuthToken(session.access_token);
-          // Retry the request
           return fetchSurvey();
         } else {
           throw new Error('Your session has expired. Please log in again.');
@@ -193,21 +189,26 @@ export default function SurveyContent() {
         throw new Error('Authentication token is missing. Please log in again.');
       }
 
-      // ✅ Get the institute_id from the survey data
-      const instituteId = survey.institute_id;
+      // ✅ FIX: Make sure institutionId is provided
+      const institutionId = survey.institute_id || survey.institution_id;
       
-      if (!instituteId) {
-        console.error('❌ No institute_id found in survey data:', survey);
+      if (!institutionId) {
+        console.error('❌ No institution ID found in survey data:', survey);
         setError('Survey configuration error. Please contact support.');
         setSubmitting(false);
         return;
       }
 
-      console.log('📋 Submitting with institute_id:', instituteId);
+      console.log('📋 Submitting with:', {
+        surveyId,
+        studentId: studentId || user.id,
+        institutionId,
+        answersCount: Object.keys(answers).length,
+        token: token ? 'present' : 'missing'
+      });
 
-      // ✅ Send the request with institute_id (not institutionId)
       const requestBody = {
-        institute_id: instituteId,  // ✅ Using institute_id to match your backend
+        institutionId: institutionId,
         studentId: studentId || user.id,
         answers: answers,
         token: token,
@@ -228,11 +229,9 @@ export default function SurveyContent() {
       );
 
       if (response.status === 401) {
-        // Token expired, try to refresh
         const { data: { session } } = await supabase.auth.refreshSession();
         if (session?.access_token) {
           setAuthToken(session.access_token);
-          // Retry the submission
           return handleSubmit(e);
         } else {
           throw new Error('Your session has expired. Please log in again.');
