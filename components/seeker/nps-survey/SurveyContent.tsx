@@ -190,7 +190,7 @@ export default function SurveyContent() {
       }
 
       // ✅ FIX: Make sure institutionId is provided
-      const institutionId = survey.institute_id || survey.institution_id;
+      const institutionId = survey.institute_id || survey.institute_id;
       
       if (!institutionId) {
         console.error('❌ No institution ID found in survey data:', survey);
