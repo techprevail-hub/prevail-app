@@ -402,7 +402,7 @@ export default function SurveyContent() {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Cannot Access Survey</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/dashboard/seeker')}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Go to Dashboard
@@ -444,7 +444,7 @@ export default function SurveyContent() {
           <p className="text-gray-600 mb-4">Your survey response has been submitted successfully.</p>
           <p className="text-sm text-gray-500">We appreciate your valuable feedback!</p>
           <button
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push('/dashboard/seeker')}
             className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Go to Dashboard
