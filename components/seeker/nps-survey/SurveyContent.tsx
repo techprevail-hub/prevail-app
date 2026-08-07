@@ -4,7 +4,6 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabaseClient";
 
 interface Question {
@@ -28,7 +27,6 @@ interface SurveyData {
 export default function SurveyContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
   
   const surveyId = searchParams.get('surveyId');
   const token = searchParams.get('token');
@@ -40,40 +38,59 @@ export default function SurveyContent() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authToken, setAuthToken] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  // Get auth token when user is available
+  // Check authentication and get token
   useEffect(() => {
-    const getAuthToken = async () => {
-      if (user) {
+    const checkAuth = async () => {
+      try {
+        setAuthLoading(true);
         const { data: { session } } = await supabase.auth.getSession();
+        
         if (session?.access_token) {
           setAuthToken(session.access_token);
           setIsAuthenticated(true);
         } else {
+          // Try to refresh the session
           const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
           if (refreshedSession?.access_token) {
             setAuthToken(refreshedSession.access_token);
             setIsAuthenticated(true);
           } else {
+            // Not authenticated - but we can still show the survey if token is valid
+            // The backend will validate the survey token
             setIsAuthenticated(false);
-            setError('Unable to authenticate. Please log in again.');
+            setAuthToken(null);
           }
         }
+      } catch (err) {
+        console.error('Auth check error:', err);
+        setIsAuthenticated(false);
+        setAuthToken(null);
+      } finally {
+        setAuthLoading(false);
       }
     };
 
-    if (!authLoading) {
-      if (!user) {
-        const redirectUrl = `/dashboard/seeker/nps-survey?surveyId=${surveyId}&token=${token}&studentId=${studentId}`;
-        router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
-        return;
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) {
+        setAuthToken(session.access_token);
+        setIsAuthenticated(true);
+      } else {
+        setAuthToken(null);
+        setIsAuthenticated(false);
       }
-      getAuthToken();
-    }
-  }, [user, authLoading, router, surveyId, token, studentId]);
+      setAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Validate URL parameters
   useEffect(() => {
@@ -92,36 +109,53 @@ export default function SurveyContent() {
 
   // Fetch survey data
   useEffect(() => {
-    if (!isAuthenticated || !authToken || !surveyId || !token || !studentId || studentId === 'undefined') {
+    if (authLoading) return;
+    
+    if (!surveyId || !token || !studentId || studentId === 'undefined') {
       return;
     }
 
     fetchSurvey();
-  }, [isAuthenticated, authToken, surveyId, token, studentId]);
+  }, [authLoading, surveyId, token, studentId]);
 
   const fetchSurvey = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // Build headers - include auth token if available
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      console.log('🔍 Fetching survey with:', { surveyId, token, studentId, hasAuth: !!authToken });
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/role-seeker/nps/surveys/${surveyId}?token=${token}&studentId=${studentId}`,
         {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-          },
+          headers,
         }
       );
 
+      console.log('📡 Response status:', response.status);
+
       if (response.status === 401) {
-        const { data: { session } } = await supabase.auth.refreshSession();
-        if (session?.access_token) {
-          setAuthToken(session.access_token);
-          return fetchSurvey();
-        } else {
-          throw new Error('Your session has expired. Please log in again.');
+        // Token expired or invalid, try to refresh
+        if (authToken) {
+          const { data: { session } } = await supabase.auth.refreshSession();
+          if (session?.access_token) {
+            setAuthToken(session.access_token);
+            setIsAuthenticated(true);
+            // Retry the request
+            return fetchSurvey();
+          }
         }
+        // If still unauthorized, the survey token might be invalid
+        throw new Error('Invalid survey link. Please check your email for the correct link.');
       }
 
       if (!response.ok) {
@@ -130,6 +164,7 @@ export default function SurveyContent() {
       }
 
       const result = await response.json();
+      console.log('📋 Survey result:', result);
       
       if (result.success) {
         setSurvey(result.data);
@@ -168,11 +203,12 @@ export default function SurveyContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!survey || !user?.id) {
-      setError('Please log in to submit the survey');
+    if (!survey) {
+      setError('Survey not loaded. Please refresh the page.');
       return;
     }
 
+    // Validate all questions are answered
     const allAnswered = survey.questions.every(q => 
       answers[q.id] !== undefined && answers[q.id] !== '' && answers[q.id] !== null
     );
@@ -186,8 +222,22 @@ export default function SurveyContent() {
       setSubmitting(true);
       setError(null);
 
-      if (!authToken) {
-        throw new Error('Authentication token is missing. Please log in again.');
+      // Build headers
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Try to get fresh token if available
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      } else {
+        // Try to get a new token
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          setAuthToken(session.access_token);
+          setIsAuthenticated(true);
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
       }
 
       const instituteId = survey.institute_id;
@@ -200,28 +250,48 @@ export default function SurveyContent() {
 
       const requestBody = {
         institute_id: instituteId,
-        studentId: studentId || user.id,
+        studentId: studentId,
         answers: answers,
         token: token,
       };
+
+      console.log('📋 Submitting survey:', requestBody);
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/role-seeker/nps/surveys/${surveyId}/submit`,
         {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify(requestBody),
         }
       );
 
       if (response.status === 401) {
+        // Try to refresh and retry
         const { data: { session } } = await supabase.auth.refreshSession();
         if (session?.access_token) {
           setAuthToken(session.access_token);
-          return handleSubmit(e);
+          setIsAuthenticated(true);
+          // Retry with new token
+          const retryHeaders = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          };
+          const retryResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/role-seeker/nps/surveys/${surveyId}/submit`,
+            {
+              method: 'POST',
+              headers: retryHeaders,
+              body: JSON.stringify(requestBody),
+            }
+          );
+          const retryData = await retryResponse.json();
+          if (retryData.success) {
+            setSubmitted(true);
+            return;
+          } else {
+            throw new Error(retryData.message || 'Failed to submit survey');
+          }
         } else {
           throw new Error('Your session has expired. Please log in again.');
         }
@@ -380,7 +450,7 @@ export default function SurveyContent() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+        <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full text-center">
           <div className="text-6xl mb-4">🔒</div>
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Cannot Access Survey</h2>
           <p className="text-gray-600 mb-4">{error}</p>
@@ -389,28 +459,6 @@ export default function SurveyContent() {
             className="px-6 py-2 bg-[#1a73e8] text-white rounded-lg hover:bg-[#1557b0] transition-colors"
           >
             Go to Dashboard
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Not authenticated
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
-          <div className="text-6xl mb-4">🔐</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Please Login</h2>
-          <p className="text-gray-600 mb-4">You need to be logged in to access this survey.</p>
-          <button
-            onClick={() => {
-              const redirectUrl = `/dashboard/seeker/nps-survey?surveyId=${surveyId}&token=${token}&studentId=${studentId}`;
-              router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
-            }}
-            className="px-6 py-2 bg-[#1a73e8] text-white rounded-lg hover:bg-[#1557b0] transition-colors"
-          >
-            Login Now
           </button>
         </div>
       </div>
