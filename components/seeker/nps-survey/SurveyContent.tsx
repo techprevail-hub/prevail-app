@@ -21,7 +21,8 @@ interface SurveyData {
   total_questions: number;
   expires_at: string;
   submitted: boolean;
-  institute_id?: string;
+  institute_id: string;  // ✅ Keep as institute_id
+  student_name?: string;
 }
 
 export default function SurveyContent() {
@@ -111,7 +112,6 @@ export default function SurveyContent() {
         authToken: authToken ? 'present' : 'missing'
       });
 
-      // Use auth token in Authorization header, survey token as query param
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/role-seeker/nps/surveys/${surveyId}?token=${token}&studentId=${studentId}`,
         {
@@ -193,6 +193,28 @@ export default function SurveyContent() {
         throw new Error('Authentication token is missing. Please log in again.');
       }
 
+      // ✅ Get the institute_id from the survey data
+      const instituteId = survey.institute_id;
+      
+      if (!instituteId) {
+        console.error('❌ No institute_id found in survey data:', survey);
+        setError('Survey configuration error. Please contact support.');
+        setSubmitting(false);
+        return;
+      }
+
+      console.log('📋 Submitting with institute_id:', instituteId);
+
+      // ✅ Send the request with institute_id (not institutionId)
+      const requestBody = {
+        institute_id: instituteId,  // ✅ Using institute_id to match your backend
+        studentId: studentId || user.id,
+        answers: answers,
+        token: token,
+      };
+
+      console.log('📋 Request body:', requestBody);
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/role-seeker/nps/surveys/${surveyId}/submit`,
         {
@@ -201,12 +223,7 @@ export default function SurveyContent() {
             'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            institutionId: survey?.institute_id || '',
-            studentId: studentId || user.id,
-            answers: answers,
-            token: token,
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
@@ -227,7 +244,13 @@ export default function SurveyContent() {
       if (data.success) {
         setSubmitted(true);
       } else {
-        setError(data.message || 'Failed to submit survey');
+        // Show validation errors if any
+        if (data.errors) {
+          const errorMessages = data.errors.map((err: any) => err.msg).join(', ');
+          setError(`Validation failed: ${errorMessages}`);
+        } else {
+          setError(data.message || 'Failed to submit survey');
+        }
       }
     } catch (err: any) {
       console.error('Error submitting survey:', err);
