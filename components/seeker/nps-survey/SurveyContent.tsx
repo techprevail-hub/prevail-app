@@ -1,8 +1,11 @@
+// app/dashboard/seeker/nps-survey/SurveyContent.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/lib/supabaseClient";
 
 interface Question {
   id: string;
@@ -18,7 +21,7 @@ interface SurveyData {
   total_questions: number;
   expires_at: string;
   submitted: boolean;
-  instituteId: string;
+  instituteId?: string;
 }
 
 export default function SurveyContent() {
@@ -42,7 +45,6 @@ export default function SurveyContent() {
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
-        // Redirect to login if not authenticated
         const redirectUrl = `/dashboard/seeker/nps-survey?surveyId=${surveyId}&token=${token}&studentId=${studentId}`;
         router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
         return;
@@ -64,14 +66,7 @@ export default function SurveyContent() {
       setLoading(false);
       return;
     }
-
-    // Check if studentId matches the logged-in user
-    if (user && user.id && studentId !== user.id) {
-      setError('You are not authorized to take this survey. The survey is for a different student.');
-      setLoading(false);
-      return;
-    }
-  }, [surveyId, token, studentId, user]);
+  }, [surveyId, token, studentId]);
 
   // Fetch survey data
   useEffect(() => {
@@ -87,12 +82,20 @@ export default function SurveyContent() {
       setLoading(true);
       setError(null);
 
-      // Use your existing backend API
-      // Note: The token here is the survey token from URL, not the auth token
+      // Get the user's auth token from Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token;
+
+      if (!authToken) {
+        throw new Error('You need to be logged in to take this survey');
+      }
+
+      // Use auth token in Authorization header, survey token as query param
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/role-seeker/nps/surveys/${surveyId}?token=${token}&studentId=${studentId}`,
         {
           headers: {
+            'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json',
           },
         }
@@ -107,7 +110,6 @@ export default function SurveyContent() {
       
       if (result.success) {
         setSurvey(result.data);
-        // If survey already submitted, show submitted state
         if (result.data.submitted) {
           setSubmitted(true);
         }
@@ -151,17 +153,24 @@ export default function SurveyContent() {
       setSubmitting(true);
       setError(null);
 
-      // Use your existing backend API
-      // Note: The token here is the survey token from URL, not the auth token
+      // Get the user's auth token from Supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token;
+
+      if (!authToken) {
+        throw new Error('You need to be logged in to submit the survey');
+      }
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/role-seeker/nps/surveys/${surveyId}/submit`,
         {
           method: 'POST',
           headers: {
+            'Authorization': `Bearer ${authToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            institutionId: survey?.instituteId || 'b723fa25-24f2-4981-b7d1-a8c82edcb037',
+            institutionId: survey?.instituteId || '',
             studentId: studentId || user.id,
             answers: answers,
             token: token,
