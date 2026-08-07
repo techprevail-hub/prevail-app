@@ -21,7 +21,7 @@ interface SurveyData {
   total_questions: number;
   expires_at: string;
   submitted: boolean;
-  instituteId?: string;
+  institute_id?: string;
 }
 
 export default function SurveyContent() {
@@ -40,16 +40,38 @@ export default function SurveyContent() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
-  // Check authentication
+  // Get auth token when user is available
   useEffect(() => {
+    const getAuthToken = async () => {
+      if (user) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          setAuthToken(session.access_token);
+          setIsAuthenticated(true);
+        } else {
+          // Try to refresh the session
+          const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+          if (refreshedSession?.access_token) {
+            setAuthToken(refreshedSession.access_token);
+            setIsAuthenticated(true);
+          } else {
+            setIsAuthenticated(false);
+            setError('Unable to authenticate. Please log in again.');
+          }
+        }
+      }
+    };
+
     if (!authLoading) {
       if (!user) {
+        // Redirect to login
         const redirectUrl = `/dashboard/seeker/nps-survey?surveyId=${surveyId}&token=${token}&studentId=${studentId}`;
         router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
         return;
       }
-      setIsAuthenticated(true);
+      getAuthToken();
     }
   }, [user, authLoading, router, surveyId, token, studentId]);
 
@@ -70,25 +92,24 @@ export default function SurveyContent() {
 
   // Fetch survey data
   useEffect(() => {
-    if (!isAuthenticated || !surveyId || !token || !studentId || studentId === 'undefined') {
+    if (!isAuthenticated || !authToken || !surveyId || !token || !studentId || studentId === 'undefined') {
       return;
     }
 
     fetchSurvey();
-  }, [isAuthenticated, surveyId, token, studentId]);
+  }, [isAuthenticated, authToken, surveyId, token, studentId]);
 
   const fetchSurvey = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Get the user's auth token from Supabase
-      const { data: { session } } = await supabase.auth.getSession();
-      const authToken = session?.access_token;
-
-      if (!authToken) {
-        throw new Error('You need to be logged in to take this survey');
-      }
+      console.log('🔍 Fetching survey with:', {
+        surveyId,
+        token,
+        studentId,
+        authToken: authToken ? 'present' : 'missing'
+      });
 
       // Use auth token in Authorization header, survey token as query param
       const response = await fetch(
@@ -101,12 +122,27 @@ export default function SurveyContent() {
         }
       );
 
+      console.log('📡 Response status:', response.status);
+
+      if (response.status === 401) {
+        // Token expired or invalid, try to refresh
+        const { data: { session } } = await supabase.auth.refreshSession();
+        if (session?.access_token) {
+          setAuthToken(session.access_token);
+          // Retry the request
+          return fetchSurvey();
+        } else {
+          throw new Error('Your session has expired. Please log in again.');
+        }
+      }
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to fetch survey');
       }
 
       const result = await response.json();
+      console.log('📋 Survey result:', result);
       
       if (result.success) {
         setSurvey(result.data);
@@ -153,12 +189,8 @@ export default function SurveyContent() {
       setSubmitting(true);
       setError(null);
 
-      // Get the user's auth token from Supabase
-      const { data: { session } } = await supabase.auth.getSession();
-      const authToken = session?.access_token;
-
       if (!authToken) {
-        throw new Error('You need to be logged in to submit the survey');
+        throw new Error('Authentication token is missing. Please log in again.');
       }
 
       const response = await fetch(
@@ -170,13 +202,25 @@ export default function SurveyContent() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            institutionId: survey?.instituteId || '',
+            institutionId: survey?.institute_id || '',
             studentId: studentId || user.id,
             answers: answers,
             token: token,
           }),
         }
       );
+
+      if (response.status === 401) {
+        // Token expired, try to refresh
+        const { data: { session } } = await supabase.auth.refreshSession();
+        if (session?.access_token) {
+          setAuthToken(session.access_token);
+          // Retry the submission
+          return handleSubmit(e);
+        } else {
+          throw new Error('Your session has expired. Please log in again.');
+        }
+      }
 
       const data = await response.json();
 
@@ -322,7 +366,7 @@ export default function SurveyContent() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
           <div className="text-6xl mb-4">🔒</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Invalid Survey Link</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Cannot Access Survey</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={() => router.push('/dashboard')}
