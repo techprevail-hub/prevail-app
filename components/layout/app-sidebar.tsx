@@ -33,6 +33,7 @@ import {
   DollarSign,
   Award,
   BookOpen,
+  ClipboardList,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -56,6 +57,7 @@ const NAV_CONFIG: Record<string, NavItem[]> = {
     { label: "Coach",     href: "/dashboard/seeker/coach",     icon: Users },
     { label: "Job Insights",  href: "/dashboard/seeker/job-insights",  icon: BarChart3 },
     { label: "Progress",  href: "/dashboard/seeker/progress",  icon: TrendingUp },
+    { label: "Survey",   href: "/dashboard/seeker/nps-survey",   icon: ClipboardList },
     { label: "Settings",  href: "/dashboard/seeker/settings",  icon: Settings },
   ],
   coach: [
@@ -75,9 +77,9 @@ const NAV_CONFIG: Record<string, NavItem[]> = {
     { label: "Invite Coaches", href: "/dashboard/institute/invite-coaches", icon: PlusCircle, badge: "New" },
     { label: "Students",       href: "/dashboard/institute/students",       icon: Users },
     { label: "Coaches",        href: "/dashboard/institute/coaches",        icon: Award },
+    { label: "NPS",            href: "/dashboard/institute/nps",            icon: Star },
     { label: "Progress",       href: "/dashboard/institute/progress",       icon: TrendingUp },
     { label: "Placement",      href: "/dashboard/institute/placement",      icon: Briefcase },
-    { label: "NPS",            href: "/dashboard/institute/nps",            icon: Star },
     { label: "Reports",        href: "/dashboard/institute/reports",        icon: BarChart3 },
     { label: "Settings",       href: "/dashboard/institute/settings",       icon: Settings },
   ],
