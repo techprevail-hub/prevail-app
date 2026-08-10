@@ -6,8 +6,6 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabaseClient";
-import { motion } from "framer-motion";
-import { CheckCircle2, AlertCircle, ArrowRight, ChevronUp } from "lucide-react";
 
 interface Question {
   id: string;
@@ -44,7 +42,6 @@ export default function SurveyContent() {
   const [error, setError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
-  const [expandedQuestion, setExpandedQuestion] = useState<string | null>(null);
 
   // ✅ FIX: Get auth token and check authentication
   useEffect(() => {
@@ -273,136 +270,112 @@ export default function SurveyContent() {
     }
   };
 
-  const getProgressPercentage = () => {
-    if (!survey) return 0;
-    const answeredCount = survey.questions.filter(q => 
-      answers[q.id] !== undefined && answers[q.id] !== '' && answers[q.id] !== null
-    ).length;
-    return Math.round((answeredCount / survey.questions.length) * 100);
-  };
-
   const renderQuestion = (question: Question) => {
     const value = answers[question.id] || '';
 
     switch (question.question_type) {
       case 'rating':
         return (
-          <div className="flex gap-2 mt-4 flex-wrap">
+          <div className="flex gap-3 mt-2 flex-wrap">
             {[1, 2, 3, 4, 5].map((rating) => (
-              <motion.button
+              <button
                 key={rating}
                 type="button"
                 onClick={() => handleAnswerChange(question.id, rating)}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                className={`w-12 h-12 rounded-full border-2 font-semibold text-sm transition-all duration-200 ${
+                className={`w-12 h-12 rounded-full border-2 transition-all ${
                   value === rating
-                    ? 'border-[#6C5CE7] bg-[#6C5CE7] text-white shadow-lg'
-                    : 'border-gray-200 text-gray-700 hover:border-[#6C5CE7] hover:bg-[#F5F3FF]'
+                    ? 'border-blue-600 bg-blue-600 text-white shadow-lg transform scale-110'
+                    : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
                 }`}
               >
                 {rating}
-              </motion.button>
+              </button>
             ))}
           </div>
         );
 
       case 'recommendation':
         return (
-          <div className="mt-4">
-            <div className="flex gap-1.5 flex-wrap justify-center md:justify-start">
-              {Array.from({ length: 11 }, (_, i) => (
-                <motion.button
-                  key={i}
-                  type="button"
-                  onClick={() => handleAnswerChange(question.id, i)}
-                  whileHover={{ scale: 1.2 }}
-                  whileTap={{ scale: 0.9 }}
-                  className={`w-10 h-10 rounded-full border-2 font-semibold text-xs transition-all duration-200 ${
-                    value === i
-                      ? 'border-[#6C5CE7] bg-[#6C5CE7] text-white shadow-md'
-                      : 'border-gray-200 text-gray-700 hover:border-[#6C5CE7] hover:bg-[#F5F3FF]'
-                  }`}
-                >
-                  {i}
-                </motion.button>
-              ))}
-            </div>
-            <div className="w-full flex justify-between text-xs text-gray-500 mt-3 px-1">
-              <span className="font-medium">Not likely</span>
-              <span className="font-medium">Very likely</span>
+          <div className="flex flex-wrap gap-2 mt-2">
+            {Array.from({ length: 11 }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => handleAnswerChange(question.id, i)}
+                className={`w-10 h-10 rounded-full border-2 transition-all ${
+                  value === i
+                    ? 'border-blue-600 bg-blue-600 text-white shadow-lg transform scale-110'
+                    : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                }`}
+              >
+                {i}
+              </button>
+            ))}
+            <div className="w-full flex justify-between text-xs text-gray-500 mt-1 px-1">
+              <span>Not likely</span>
+              <span>Very likely</span>
             </div>
           </div>
         );
 
       case 'satisfaction':
         return (
-          <div className="space-y-2 mt-4">
-            {['Very Dissatisfied', 'Dissatisfied', 'Neutral', 'Satisfied', 'Very Satisfied'].map((option, idx) => (
-              <motion.button
+          <div className="flex flex-wrap gap-3 mt-2">
+            {['Very Dissatisfied', 'Dissatisfied', 'Neutral', 'Satisfied', 'Very Satisfied'].map((option) => (
+              <button
                 key={option}
                 type="button"
                 onClick={() => handleAnswerChange(question.id, option)}
-                whileHover={{ x: 4 }}
-                whileTap={{ scale: 0.98 }}
-                className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all duration-200 font-medium text-sm ${
+                className={`px-4 py-2 rounded-lg border-2 transition-all ${
                   value === option
-                    ? 'border-[#6C5CE7] bg-[#F5F3FF] text-[#6C5CE7]'
-                    : 'border-gray-200 text-gray-700 hover:border-[#6C5CE7] hover:bg-[#F5F3FF]'
+                    ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
+                    : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
                 }`}
               >
                 {option}
-              </motion.button>
+              </button>
             ))}
           </div>
         );
 
       case 'text':
         return (
-          <motion.textarea
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full mt-4 p-4 border-2 border-gray-200 rounded-lg focus:border-[#6C5CE7] focus:ring-2 focus:ring-[#6C5CE7]/20 transition-all outline-none resize-none"
+          <textarea
+            className="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
             rows={4}
             value={value}
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            placeholder="Share your thoughts..."
+            placeholder="Type your answer here..."
           />
         );
 
       case 'multiple_choice':
         return (
-          <div className="space-y-2 mt-4">
+          <div className="space-y-2 mt-2">
             {['Option A', 'Option B', 'Option C', 'Option D'].map((option) => (
-              <motion.label
-                key={option}
-                whileHover={{ x: 4 }}
-                className="flex items-center gap-3 p-3 rounded-lg border-2 border-gray-200 hover:border-[#6C5CE7] hover:bg-[#F5F3FF] cursor-pointer transition-all duration-200"
-              >
+              <label key={option} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
                 <input
                   type="radio"
                   name={`question_${question.id}`}
                   value={option}
                   checked={value === option}
                   onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                  className="w-4 h-4 text-[#6C5CE7] accent-[#6C5CE7] cursor-pointer"
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="font-medium text-gray-700">{option}</span>
-              </motion.label>
+                <span>{option}</span>
+              </label>
             ))}
           </div>
         );
 
       default:
         return (
-          <motion.input
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+          <input
             type="text"
-            className="w-full mt-4 p-4 border-2 border-gray-200 rounded-lg focus:border-[#6C5CE7] focus:ring-2 focus:ring-[#6C5CE7]/20 transition-all outline-none font-medium"
+            className="w-full mt-2 p-3 border border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
             value={value}
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            placeholder="Type your answer..."
+            placeholder="Type your answer here..."
           />
         );
     }
@@ -411,55 +384,30 @@ export default function SurveyContent() {
   // Loading state
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center"
-        >
-          <div className="relative w-16 h-16 mx-auto mb-4">
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#6C5CE7] border-r-[#6C5CE7]"
-            />
-          </div>
-          <p className="text-gray-600 font-medium">Loading survey...</p>
-        </motion.div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-gray-600 font-medium">Loading survey...</p>
+        </div>
       </div>
     );
   }
 
   // Error state
-  if (error && !submitted) {
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center border border-gray-100"
-        >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.1 }}
-            className="flex justify-center mb-4"
-          >
-            <AlertCircle className="w-16 h-16 text-red-500" />
-          </motion.div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: 'Plus Jakarta Sans' }}>
-            Cannot Access Survey
-          </h2>
-          <p className="text-gray-600 mb-6 leading-relaxed">{error}</p>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Cannot Access Survey</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
             onClick={() => router.push('/dashboard/seeker')}
-            className="w-full px-6 py-3 bg-[#6C5CE7] text-white rounded-lg hover:bg-[#5B4BC0] transition-colors font-semibold"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Go to Dashboard
-          </motion.button>
-        </motion.div>
+          </button>
+        </div>
       </div>
     );
   }
@@ -467,36 +415,21 @@ export default function SurveyContent() {
   // Not authenticated
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center border border-gray-100"
-        >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.1 }}
-            className="flex justify-center mb-4"
-          >
-            <AlertCircle className="w-16 h-16 text-yellow-500" />
-          </motion.div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: 'Plus Jakarta Sans' }}>
-            Please Login
-          </h2>
-          <p className="text-gray-600 mb-6 leading-relaxed">You need to be logged in to access this survey.</p>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+          <div className="text-6xl mb-4">🔐</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Please Login</h2>
+          <p className="text-gray-600 mb-4">You need to be logged in to access this survey.</p>
+          <button
             onClick={() => {
               const redirectUrl = `/dashboard/seeker/nps-survey?surveyId=${surveyId}&token=${token}&studentId=${studentId}`;
               router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
             }}
-            className="w-full px-6 py-3 bg-[#6C5CE7] text-white rounded-lg hover:bg-[#5B4BC0] transition-colors font-semibold"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Login Now
-          </motion.button>
-        </motion.div>
+          </button>
+        </div>
       </div>
     );
   }
@@ -504,226 +437,65 @@ export default function SurveyContent() {
   // Survey submitted successfully
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center border border-gray-100"
-        >
-          <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 150, damping: 15 }}
-            className="flex justify-center mb-4"
-          >
-            <CheckCircle2 className="w-16 h-16 text-green-500" />
-          </motion.div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: 'Plus Jakarta Sans' }}>
-            Thank You!
-          </h2>
-          <p className="text-gray-600 mb-2 leading-relaxed">
-            Your survey response has been submitted successfully.
-          </p>
-          <p className="text-sm text-gray-500 mb-6">
-            We appreciate your valuable feedback!
-          </p>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+          <div className="text-6xl mb-4">✅</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Thank You!</h2>
+          <p className="text-gray-600 mb-4">Your survey response has been submitted successfully.</p>
+          <p className="text-sm text-gray-500">We appreciate your valuable feedback!</p>
+          <button
             onClick={() => router.push('/dashboard/seeker')}
-            className="w-full px-6 py-3 bg-[#6C5CE7] text-white rounded-lg hover:bg-[#5B4BC0] transition-colors font-semibold"
+            className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Go to Dashboard
-          </motion.button>
-        </motion.div>
+          </button>
+        </div>
       </div>
     );
   }
 
   // Main survey form
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 py-8 px-4 md:py-12">
-      {/* Background decoration */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#6C5CE7]/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#AC5D00]/5 rounded-full blur-3xl" />
-      </div>
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+            {survey?.title || 'Feedback Survey'}
+          </h1>
+          <p className="text-gray-600 mb-6">
+            {survey?.description || 'Please share your feedback with us.'}
+          </p>
+          
+          <form onSubmit={handleSubmit}>
+            {survey?.questions.map((question, index) => (
+              <div key={question.id} className="mb-8 pb-6 border-b border-gray-200 last:border-0">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {index + 1}. {question.question}
+                  <span className="text-red-500 ml-1">*</span>
+                </label>
+                {renderQuestion(question)}
+              </div>
+            ))}
 
-      <div className="max-w-2xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden"
-        >
-          {/* Header with progress */}
-          <div className="bg-gradient-to-r from-[#6C5CE7]/5 to-[#AC5D00]/5 p-8 md:p-10 border-b border-gray-100">
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex-1">
-                <h1 
-                  className="text-3xl md:text-4xl font-bold text-gray-900 mb-2"
-                  style={{ fontFamily: 'Plus Jakarta Sans' }}
-                >
-                  {survey?.title || 'Feedback Survey'}
-                </h1>
-                <p className="text-gray-600 max-w-lg leading-relaxed">
-                  {survey?.description || 'Please share your feedback with us.'}
-                </p>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">
-                  Progress
-                </span>
-                <span className="text-sm font-bold text-[#6C5CE7]">
-                  {getProgressPercentage()}%
-                </span>
-              </div>
-              <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${getProgressPercentage()}%` }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                  className="h-full bg-gradient-to-r from-[#6C5CE7] to-[#AC5D00]"
-                />
-              </div>
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>
-                  {survey?.questions.filter(q => 
-                    answers[q.id] !== undefined && answers[q.id] !== '' && answers[q.id] !== null
-                  ).length || 0} of {survey?.questions.length || 0} answered
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Questions */}
-          <form onSubmit={handleSubmit} className="p-8 md:p-10 space-y-8">
             {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-4 bg-red-50 border-2 border-red-200 text-red-700 rounded-xl flex gap-3"
-              >
-                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <span className="text-sm font-medium">{error}</span>
-              </motion.div>
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+                {error}
+              </div>
             )}
 
-            {survey?.questions.map((question, index) => {
-              const isAnswered = answers[question.id] !== undefined && 
-                                answers[question.id] !== '' && 
-                                answers[question.id] !== null;
-
-              return (
-                <motion.div
-                  key={question.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className={`pb-8 border-b border-gray-100 last:border-0 transition-all duration-200 ${
-                    expandedQuestion === question.id ? 'bg-gray-50 p-6 rounded-xl -mx-8 px-8' : ''
-                  }`}
-                >
-                  {/* Question header */}
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="flex-1">
-                      <label className="flex items-start gap-3 cursor-pointer group">
-                        <div className="flex items-center justify-center min-w-max mt-1">
-                          <motion.div
-                            animate={{
-                              background: isAnswered 
-                                ? 'linear-gradient(135deg, #6C5CE7, #AC5D00)' 
-                                : '#f3f4f6'
-                            }}
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-                          >
-                            <span className={isAnswered ? 'text-white' : 'text-gray-700'}>
-                              {index + 1}
-                            </span>
-                          </motion.div>
-                        </div>
-                        <span 
-                          className="text-lg md:text-lg font-semibold text-gray-900 leading-snug group-hover:text-[#6C5CE7] transition-colors"
-                          style={{ fontFamily: 'Plus Jakarta Sans' }}
-                        >
-                          {question.question}
-                          {!isAnswered && (
-                            <span className="text-red-500 ml-1.5">*</span>
-                          )}
-                        </span>
-                      </label>
-                    </div>
-                    {isAnswered && (
-                      <motion.div
-                        initial={{ scale: 0, rotate: -180 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                      >
-                        <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0" />
-                      </motion.div>
-                    )}
-                  </div>
-
-                  {/* Question content */}
-                  <div className="ml-11">
-                    {renderQuestion(question)}
-                  </div>
-                </motion.div>
-              );
-            })}
-
-            {/* Submit button */}
-            <motion.button
+            <button
               type="submit"
-              disabled={submitting || getProgressPercentage() < 100}
-              whileHover={{ scale: submitting ? 1 : 1.02 }}
-              whileTap={{ scale: submitting ? 1 : 0.98 }}
-              className="w-full mt-8 py-4 px-6 bg-gradient-to-r from-[#6C5CE7] to-[#5B4BC0] text-white rounded-xl font-bold text-lg hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              style={{ fontFamily: 'Plus Jakarta Sans' }}
+              disabled={submitting}
+              className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
             >
-              {submitting ? (
-                <>
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
-                  />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  Submit Response
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </motion.button>
-
-            {/* Footer message */}
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="text-center text-sm text-gray-500 leading-relaxed"
-            >
-              Your responses will be kept confidential and used to improve our services.
-            </motion.p>
+              {submitting ? 'Submitting...' : 'Submit Survey'}
+            </button>
           </form>
-        </motion.div>
 
-        {/* Footer branding */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="text-center mt-8"
-        >
-          <p className="text-sm text-gray-500">
-            Powered by <span className="font-semibold text-[#6C5CE7]">Prevail</span>
+          <p className="mt-4 text-sm text-gray-500 text-center">
+            Your responses will be kept confidential and used to improve our services.
           </p>
-        </motion.div>
+        </div>
       </div>
     </div>
   );
