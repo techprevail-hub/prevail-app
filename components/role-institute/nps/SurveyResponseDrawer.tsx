@@ -36,6 +36,7 @@ import {
   Star,
   ThumbsUp,
   Smile,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { instituteNpsService } from '@/services/instituteNpsService';
@@ -56,27 +57,36 @@ interface SurveyResponseDrawerProps {
 
 // ─── Helper Functions ──────────────────────────────────────────────────────
 const getScoreColor = (score: number): string => {
-  if (score >= 9) return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-  if (score >= 7) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-  return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+  if (score >= 9) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+  if (score >= 7) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+  return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400';
 };
 
-const getCategory = (score: number): { label: string; icon: React.ReactNode } => {
+const getScoreBadgeVariant = (score: number): "default" | "secondary" | "outline" | "destructive" | "ghost" | "link" => {
+  if (score >= 9) return "default";
+  if (score >= 7) return "secondary";
+  return "destructive";
+};
+
+const getCategory = (score: number): { label: string; icon: React.ReactNode; color: string } => {
   if (score >= 9) {
     return {
       label: 'Promoter',
-      icon: <UserCheck className="h-4 w-4" />,
+      icon: <UserCheck className="h-3.5 w-3.5" />,
+      color: 'text-emerald-600 bg-emerald-50 border-emerald-200',
     };
   }
   if (score >= 7) {
     return {
       label: 'Passive',
-      icon: <UserMinus className="h-4 w-4" />,
+      icon: <UserMinus className="h-3.5 w-3.5" />,
+      color: 'text-amber-600 bg-amber-50 border-amber-200',
     };
   }
   return {
     label: 'Detractor',
-    icon: <UserX className="h-4 w-4" />,
+    icon: <UserX className="h-3.5 w-3.5" />,
+    color: 'text-rose-600 bg-rose-50 border-rose-200',
   };
 };
 
@@ -154,11 +164,9 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
       const response = await instituteNpsService.getSurveyResponses(surveyId) as SurveyResponsesResponse;
 
       if (response.success) {
-        // Handle the response structure properly
         const responseData = response.data || [];
         setResponses(responseData);
         
-        // Store analytics if available
         if (response.analytics) {
           setAnalytics(response.analytics);
         }
@@ -195,7 +203,6 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
       return answers;
     }
 
-    // Fallback: Convert raw answers to display format
     if (response.answers && Object.keys(response.answers).length > 0) {
       const entries = Object.entries(response.answers);
       return entries.map(([key, value], index) => ({
@@ -209,93 +216,100 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-w-2xl mx-auto h-full">
+      <DrawerContent className="max-w-2xl mx-auto h-full max-h-[95vh] flex flex-col">
         {/* ─── Header ────────────────────────────────────────────────────── */}
-        <DrawerHeader className="border-b">
+        <DrawerHeader className="border-b border-slate-200 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div>
-              <DrawerTitle className="text-xl font-semibold">
+            <div className="min-w-0 flex-1">
+              <DrawerTitle className="text-lg md:text-xl font-semibold text-slate-800 flex items-center gap-2">
+                <Users className="h-5 w-5 text-violet-500" />
                 Survey Responses
               </DrawerTitle>
-              <div className="flex items-center gap-3 mt-1">
-                <span className="text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-1">
+                <span className="text-sm text-slate-500 truncate max-w-[150px] md:max-w-[250px]">
                   {surveyTitle || 'Untitled Survey'}
                 </span>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs border-violet-200 text-violet-600 bg-violet-50 flex-shrink-0">
                   {summary.total} {summary.total === 1 ? 'Response' : 'Responses'}
                 </Badge>
               </div>
             </div>
             <DrawerClose asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 rounded-full hover:bg-slate-100 flex-shrink-0"
+              >
+                <X className="h-4 w-4" />
                 <span className="sr-only">Close</span>
-                ✕
               </Button>
             </DrawerClose>
           </div>
         </DrawerHeader>
 
         {/* ─── Content ───────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden min-h-0">
           {loading ? (
             // ─── Loading State ──────────────────────────────────────────
-            <div className="flex flex-col items-center justify-center h-full gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Loading responses...</p>
+            <div className="flex flex-col items-center justify-center h-full gap-3 p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+              <p className="text-sm text-slate-500">Loading responses...</p>
             </div>
           ) : responses.length === 0 ? (
             // ─── Empty State ─────────────────────────────────────────────
             <div className="flex flex-col items-center justify-center h-full gap-3 p-8">
-              <AlertCircle className="h-12 w-12 text-muted-foreground" />
-              <h3 className="text-lg font-semibold">No responses yet</h3>
-              <p className="text-sm text-muted-foreground text-center max-w-sm">
+              <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+                <AlertCircle className="h-8 w-8 text-slate-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-700">No responses yet</h3>
+              <p className="text-sm text-slate-500 text-center max-w-sm">
                 Students haven't submitted this survey yet. Check back later for responses.
               </p>
             </div>
           ) : (
             <div className="h-full flex flex-col">
               {/* ─── Analytics Cards ────────────────────────────────────── */}
-              <div className="grid grid-cols-4 gap-2 p-4 border-b bg-muted/20">
-                <Card className="border-0 bg-background">
-                  <CardContent className="p-2 text-center">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-3 md:p-4 border-b border-slate-200 bg-slate-50/50 flex-shrink-0">
+                <Card className="border-0 bg-white shadow-sm">
+                  <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <Star className="h-3 w-3 text-yellow-500" />
-                      <span className="text-xs font-medium text-muted-foreground">Rating</span>
+                      <Star className="h-3 w-3 text-amber-500" />
+                      <span className="text-xs font-medium text-slate-500">Rating</span>
                     </div>
-                    <p className="text-lg font-bold">
+                    <p className="text-lg md:text-xl font-bold text-slate-800">
                       {analytics?.averageRating?.toFixed(1) || 'N/A'}
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="border-0 bg-background">
-                  <CardContent className="p-2 text-center">
+                <Card className="border-0 bg-white shadow-sm">
+                  <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <ThumbsUp className="h-3 w-3 text-green-500" />
-                      <span className="text-xs font-medium text-muted-foreground">Recommend</span>
+                      <ThumbsUp className="h-3 w-3 text-emerald-500" />
+                      <span className="text-xs font-medium text-slate-500">Recommend</span>
                     </div>
-                    <p className="text-lg font-bold">
+                    <p className="text-lg md:text-xl font-bold text-slate-800">
                       {analytics?.recommendationPercentage || 0}%
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="border-0 bg-background">
-                  <CardContent className="p-2 text-center">
+                <Card className="border-0 bg-white shadow-sm">
+                  <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Smile className="h-3 w-3 text-blue-500" />
-                      <span className="text-xs font-medium text-muted-foreground">Satisfaction</span>
+                      <span className="text-xs font-medium text-slate-500">Satisfaction</span>
                     </div>
-                    <p className="text-lg font-bold">
+                    <p className="text-lg md:text-xl font-bold text-slate-800">
                       {analytics?.satisfactionPercentage || 0}%
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="border-0 bg-background">
-                  <CardContent className="p-2 text-center">
+                <Card className="border-0 bg-white shadow-sm">
+                  <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <Users className="h-3 w-3 text-purple-500" />
-                      <span className="text-xs font-medium text-muted-foreground">Total</span>
+                      <Users className="h-3 w-3 text-violet-500" />
+                      <span className="text-xs font-medium text-slate-500">Total</span>
                     </div>
-                    <p className="text-lg font-bold">
+                    <p className="text-lg md:text-xl font-bold text-slate-800">
                       {analytics?.totalResponses || responses.length}
                     </p>
                   </CardContent>
@@ -303,38 +317,38 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
               </div>
 
               {/* ─── Summary Cards ──────────────────────────────────────── */}
-              <div className="grid grid-cols-3 gap-3 p-4 border-b bg-muted/10">
-                <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/20">
-                  <CardContent className="p-3 text-center">
+              <div className="grid grid-cols-3 gap-2 p-3 md:p-4 border-b border-slate-200 bg-slate-50/30 flex-shrink-0">
+                <Card className="border-emerald-200 bg-emerald-50/70">
+                  <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <UserCheck className="h-4 w-4 text-green-600" />
-                      <span className="text-xs font-medium text-green-600">Promoters</span>
+                      <UserCheck className="h-3.5 w-3.5 text-emerald-600" />
+                      <span className="text-xs font-medium text-emerald-600">Promoters</span>
                     </div>
-                    <p className="text-2xl font-bold text-green-700">{summary.promoters}</p>
+                    <p className="text-xl md:text-2xl font-bold text-emerald-700">{summary.promoters}</p>
                   </CardContent>
                 </Card>
-                <Card className="border-yellow-200 bg-yellow-50/50 dark:bg-yellow-950/20">
-                  <CardContent className="p-3 text-center">
+                <Card className="border-amber-200 bg-amber-50/70">
+                  <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <UserMinus className="h-4 w-4 text-yellow-600" />
-                      <span className="text-xs font-medium text-yellow-600">Passives</span>
+                      <UserMinus className="h-3.5 w-3.5 text-amber-600" />
+                      <span className="text-xs font-medium text-amber-600">Passives</span>
                     </div>
-                    <p className="text-2xl font-bold text-yellow-700">{summary.passives}</p>
+                    <p className="text-xl md:text-2xl font-bold text-amber-700">{summary.passives}</p>
                   </CardContent>
                 </Card>
-                <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20">
-                  <CardContent className="p-3 text-center">
+                <Card className="border-rose-200 bg-rose-50/70">
+                  <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <UserX className="h-4 w-4 text-red-600" />
-                      <span className="text-xs font-medium text-red-600">Detractors</span>
+                      <UserX className="h-3.5 w-3.5 text-rose-600" />
+                      <span className="text-xs font-medium text-rose-600">Detractors</span>
                     </div>
-                    <p className="text-2xl font-bold text-red-700">{summary.detractors}</p>
+                    <p className="text-xl md:text-2xl font-bold text-rose-700">{summary.detractors}</p>
                   </CardContent>
                 </Card>
               </div>
 
               {/* ─── Response List ──────────────────────────────────────── */}
-              <ScrollArea className="flex-1 p-4">
+              <ScrollArea className="flex-1 p-3 md:p-4">
                 <div className="space-y-3">
                   {responses.map((response) => {
                     const score = response.score || 0;
@@ -348,48 +362,54 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                         open={isExpanded}
                         onOpenChange={() => toggleExpand(response.id)}
                       >
-                        <Card className="overflow-hidden">
+                        <Card className="overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
                           <CardContent className="p-0">
                             {/* Response Header */}
                             <CollapsibleTrigger asChild>
-                              <div className="p-4 flex items-start gap-3 cursor-pointer hover:bg-muted/30 transition-colors">
-                                <Avatar className="h-10 w-10 flex-shrink-0">
-                                  <AvatarFallback>
+                              <div className="p-3 md:p-4 flex items-start gap-3 cursor-pointer hover:bg-violet-50/30 transition-colors duration-200">
+                                <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0 bg-violet-100">
+                                  <AvatarFallback className="text-xs md:text-sm text-violet-600 font-medium">
                                     {getInitials(response.student_name || 'Student')}
                                   </AvatarFallback>
                                 </Avatar>
 
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-medium text-sm truncate">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="font-medium text-sm truncate text-slate-800">
                                       {response.student_name || 'Anonymous Student'}
                                     </p>
-                                    <Badge className={`text-xs ${getScoreColor(score)}`}>
-                                      {score}
+                                    <Badge 
+                                      variant={getScoreBadgeVariant(score)} 
+                                      className={`text-xs flex-shrink-0 ${getScoreColor(score)}`}
+                                    >
+                                      Score: {score}
                                     </Badge>
                                   </div>
 
-                                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                  <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-1 text-xs text-slate-500">
                                     {response.email && (
-                                      <div className="flex items-center gap-1">
-                                        <Mail className="h-3 w-3" />
+                                      <div className="flex items-center gap-1 min-w-0">
+                                        <Mail className="h-3 w-3 flex-shrink-0" />
                                         <a
                                           href={`mailto:${response.email}`}
-                                          className="hover:underline truncate max-w-[150px]"
+                                          className="hover:text-violet-600 hover:underline truncate max-w-[100px] md:max-w-[150px]"
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           {response.email}
                                         </a>
                                       </div>
                                     )}
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 flex-shrink-0">
                                       <Calendar className="h-3 w-3" />
                                       <span>{formatDate(response.submitted_at)}</span>
                                     </div>
                                   </div>
 
                                   <div className="flex items-center gap-2 mt-2">
-                                    <Badge variant="outline" className="text-xs flex items-center gap-1">
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`text-xs flex items-center gap-1 ${category.color}`}
+                                    >
                                       {category.icon}
                                       {category.label}
                                     </Badge>
@@ -399,17 +419,17 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="flex-shrink-0 pointer-events-none"
+                                  className="flex-shrink-0 pointer-events-none text-slate-400 hover:text-slate-600"
                                 >
                                   {isExpanded ? (
                                     <>
                                       <ChevronUp className="h-4 w-4 mr-1" />
-                                      Hide Answers
+                                      <span className="hidden sm:inline">Hide</span>
                                     </>
                                   ) : (
                                     <>
                                       <ChevronDown className="h-4 w-4 mr-1" />
-                                      View Answers
+                                      <span className="hidden sm:inline">View</span>
                                     </>
                                   )}
                                 </Button>
@@ -418,22 +438,22 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
 
                             {/* Expanded Answers */}
                             <CollapsibleContent>
-                              <div className="border-t px-4 py-3 bg-muted/30">
+                              <div className="border-t border-slate-200 px-3 md:px-4 py-3 bg-slate-50/50">
                                 {displayAnswers.length > 0 ? (
                                   <div className="space-y-3">
                                     {displayAnswers.map((item, index) => (
                                       <div key={index} className="space-y-1">
-                                        <p className="text-xs font-medium text-muted-foreground">
+                                        <p className="text-xs font-medium text-slate-500">
                                           {item.question}
                                         </p>
-                                        <p className="text-sm bg-background p-2 rounded border">
+                                        <p className="text-sm bg-white p-2 md:p-3 rounded-lg border border-slate-200 text-slate-700">
                                           {renderAnswerValue(item.answer)}
                                         </p>
                                       </div>
                                     ))}
                                   </div>
                                 ) : (
-                                  <p className="text-sm text-muted-foreground text-center py-2">
+                                  <p className="text-sm text-slate-500 text-center py-2">
                                     No answers provided
                                   </p>
                                 )}
@@ -451,9 +471,12 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
         </div>
 
         {/* ─── Footer ────────────────────────────────────────────────────── */}
-        <DrawerFooter className="border-t">
+        <DrawerFooter className="border-t border-slate-200 flex-shrink-0">
           <DrawerClose asChild>
-            <Button variant="outline" className="w-full">
+            <Button 
+              variant="outline" 
+              className="w-full rounded-xl border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors duration-200"
+            >
               Close
             </Button>
           </DrawerClose>
