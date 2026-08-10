@@ -19,12 +19,15 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
+  FileText,
+  Mail,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { api } from "@/utils/apiServices";
+import { supabase } from "@/lib/supabaseClient";
 
 interface Notification {
   id: string;
@@ -45,8 +48,45 @@ export default function NotificationsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
+  const [userRole, setUserRole] = useState<string>("seeker");
 
   const notificationsPerPage = 20;
+
+  // ─── Fetch User Role ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Try to get role from users table first
+          const { data: userData } = await supabase
+            .from("users")
+            .select("role")
+            .eq("id", session.user.id)
+            .maybeSingle();
+
+          if (userData?.role) {
+            setUserRole(userData.role);
+          } else {
+            // Fallback to profiles table
+            const { data: profileData } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", session.user.id)
+              .maybeSingle();
+
+            if (profileData?.role) {
+              setUserRole(profileData.role);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+      }
+    };
+
+    fetchUserRole();
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
@@ -79,9 +119,15 @@ export default function NotificationsPage() {
     if (category === "linkedin") return <UserPlus className="w-5 h-5 text-indigo-500" />;
     if (category === "interview") return <MessageCircle className="w-5 h-5 text-purple-500" />;
     if (category === "coach") return <Award className="w-5 h-5 text-emerald-500" />;
+    if (category === "survey") return <FileText className="w-5 h-5 text-violet-500" />;
+    if (category === "survey_invitation") return <Mail className="w-5 h-5 text-indigo-500" />;
+    if (category === "survey_sent") return <BellRing className="w-5 h-5 text-purple-500" />;
     if (type === "achievement") return <Sparkles className="w-5 h-5 text-amber-500" />;
     if (type === "success") return <CheckCircle className="w-5 h-5 text-emerald-500" />;
     if (type === "event") return <Calendar className="w-5 h-5 text-pink-500" />;
+    if (type === "survey") return <FileText className="w-5 h-5 text-violet-500" />;
+    if (type === "survey_invitation") return <Mail className="w-5 h-5 text-indigo-500" />;
+    if (type === "survey_sent") return <BellRing className="w-5 h-5 text-purple-500" />;
     return <Bell className="w-5 h-5 text-indigo-500" />;
   };
 
@@ -154,6 +200,9 @@ export default function NotificationsPage() {
       linkedin: "LinkedIn",
       interview: "Interview",
       coach: "Coaching",
+      survey: "Survey",
+      survey_invitation: "Survey Invitation",
+      survey_sent: "Survey Sent",
     };
     return labels[category] || "General";
   };
@@ -165,8 +214,25 @@ export default function NotificationsPage() {
       linkedin: "bg-indigo-100 text-indigo-700",
       interview: "bg-purple-100 text-purple-700",
       coach: "bg-emerald-100 text-emerald-700",
+      survey: "bg-violet-100 text-violet-700",
+      survey_invitation: "bg-indigo-100 text-indigo-700",
+      survey_sent: "bg-purple-100 text-purple-700",
     };
     return colors[category] || "bg-gray-100 text-gray-700";
+  };
+
+  // ─── Get Dashboard Path Based on Role ──────────────────────────────────
+  const getDashboardPath = () => {
+    switch (userRole) {
+      case "institute":
+        return "/dashboard/institute";
+      case "coach":
+        return "/dashboard/coach";
+      case "student":
+      case "job_seeker":
+      default:
+        return "/dashboard/seeker";
+    }
   };
 
   return (
@@ -201,7 +267,7 @@ export default function NotificationsPage() {
                   Mark all as read
                 </Button>
               )}
-              <Link href="/dashboard/seeker">
+              <Link href={getDashboardPath()}>
                 <Button variant="ghost" className="text-gray-500">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back to Dashboard
@@ -316,6 +382,16 @@ export default function NotificationsPage() {
             }`}
           >
             Coaching
+          </button>
+          <button
+            onClick={() => setFilter("survey")}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              filter === "survey"
+                ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}
+          >
+            Surveys
           </button>
         </div>
 

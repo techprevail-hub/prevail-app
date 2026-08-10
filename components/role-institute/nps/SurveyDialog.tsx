@@ -41,6 +41,16 @@ export const SurveyDialog: React.FC<SurveyDialogProps> = ({
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<string>(''); // Changed from '15' to ''
+
+  // ─── Generate Day Options ──────────────────────────────────────────────
+  const generateDayOptions = () => {
+    const options = [];
+    for (let i = 5; i <=60; i += 5) {
+      options.push(i);
+    }
+    return options;
+  };
 
   // ─── Filtered and Sorted Questions ─────────────────────────────────────
   const filteredQuestions = questions
@@ -131,6 +141,7 @@ export const SurveyDialog: React.FC<SurveyDialogProps> = ({
   const resetDialog = () => {
     setSelectedQuestions([]);
     setSearch('');
+    setSelectedDays(''); // Reset days selection
   };
 
   // ─── Initialize Dialog ────────────────────────────────────────────────
@@ -145,6 +156,7 @@ export const SurveyDialog: React.FC<SurveyDialogProps> = ({
           return;
         }
         setSelectedQuestions(survey.question_ids || []);
+        setSelectedDays(String(survey.send_after_days || '')); // Set to empty if not available
       } else {
         resetDialog();
       }
@@ -164,6 +176,12 @@ export const SurveyDialog: React.FC<SurveyDialogProps> = ({
 
     if (selectedQuestions.length > 10) {
       toast.error('Please select at most 10 questions');
+      return;
+    }
+
+    // Validate days selection
+    if (!values.sendAfterDays) {
+      toast.error('Please select when to send the survey');
       return;
     }
 
@@ -211,13 +229,13 @@ export const SurveyDialog: React.FC<SurveyDialogProps> = ({
       return {
         title: survey.title || '',
         description: survey.description || '',
-        sendAfterDays: String(survey.send_after_days || 15),
+        sendAfterDays: String(survey.send_after_days || ''), // Changed from '15' to ''
       };
     }
     return {
       title: '',
       description: '',
-      sendAfterDays: '15',
+      sendAfterDays: '', // Changed from '15' to ''
     };
   };
 
@@ -381,14 +399,16 @@ export const SurveyDialog: React.FC<SurveyDialogProps> = ({
                 </label>
                 <select
                   id="survey-send-after"
-                  defaultValue={initialValues.sendAfterDays}
+                  value={selectedDays}
+                  onChange={(e) => setSelectedDays(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-400/20"
                 >
-                  <option value="15">15 Days</option>
-                  <option value="30">30 Days</option>
-                  <option value="45">45 Days</option>
-                  <option value="60">60 Days</option>
-                  <option value="90">90 Days</option>
+                  <option value="">Select days</option>
+                  {generateDayOptions().map((days) => (
+                    <option key={days} value={days}>
+                      {days} Days
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -413,7 +433,7 @@ export const SurveyDialog: React.FC<SurveyDialogProps> = ({
             onClick={() => {
               const title = (document.getElementById('survey-title') as HTMLInputElement)?.value || '';
               const description = (document.getElementById('survey-description') as HTMLTextAreaElement)?.value || '';
-              const sendAfterDays = (document.getElementById('survey-send-after') as HTMLSelectElement)?.value || '15';
+              const sendAfterDays = selectedDays; // Use state value instead of DOM
               
               handleSubmit({
                 title,

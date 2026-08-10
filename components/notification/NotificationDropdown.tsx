@@ -7,7 +7,16 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, BellRing, CheckCircle, Sparkles, Briefcase, UserPlus } from "lucide-react";
+import { 
+  Bell, 
+  CheckCircle, 
+  Sparkles, 
+  Briefcase, 
+  UserPlus,
+  FileText,   // ← ADD THIS
+  Mail,       // ← ADD THIS
+  BellRing    // ← You already have this
+} from "lucide-react";
 
 interface Notification {
   id: number;
@@ -56,6 +65,12 @@ export default function NotificationDropdown() {
         return <UserPlus className="w-4 h-4 text-emerald-500" />;
       case "success":
         return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+      case "survey":           // ← ADD THIS
+        return <FileText className="w-4 h-4 text-violet-500" />;
+      case "survey_invitation": // ← ADD THIS
+        return <Mail className="w-4 h-4 text-indigo-500" />;
+      case "survey_sent":      // ← ADD THIS
+        return <BellRing className="w-4 h-4 text-purple-500" />;
       default:
         return <Bell className="w-4 h-4 text-indigo-500" />;
     }
@@ -170,16 +185,12 @@ export default function NotificationDropdown() {
               <div
                 key={item.id}
                 onClick={async () => {
-
                   if (!item.is_read) {
                     await markAsRead(item.id);
                   }
-
                   if (item.action_url) {
-                    window.location.href =
-                      item.action_url;
+                    window.location.href = item.action_url;
                   }
-
                 }}
                 className={`p-4 border-b border-gray-50 transition-all cursor-pointer ${
                   !item.is_read

@@ -1,14 +1,14 @@
-// components/role-institute/SurveyResponseDrawer.tsx
+// components/role-institute/nps/SurveyResponseDrawer.tsx
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerFooter,
-  DrawerClose,
-} from '@/components/ui/drawer';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+  SheetClose,
+} from '@/components/ui/sheet';
 import {
   Card,
   CardContent,
@@ -21,7 +21,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Users,
   UserCheck,
@@ -215,18 +214,21 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
   }, []);
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-w-2xl mx-auto h-full max-h-[95vh] flex flex-col">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent 
+        side="right" 
+        className="w-full sm:max-w-2xl p-0 flex flex-col bg-slate-50/50 overflow-hidden"
+      >
         {/* ─── Header ────────────────────────────────────────────────────── */}
-        <DrawerHeader className="border-b border-slate-200 flex-shrink-0">
+        <SheetHeader className="border-b border-slate-200 px-4 md:px-6 py-4 md:py-6 flex-shrink-0 bg-white">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <DrawerTitle className="text-lg md:text-xl font-semibold text-slate-800 flex items-center gap-2">
-                <Users className="h-5 w-5 text-violet-500" />
-                Survey Responses
-              </DrawerTitle>
+              <SheetTitle className="text-lg md:text-xl font-semibold text-slate-800 flex items-center gap-2">
+                <Users className="h-5 w-5 text-violet-500 flex-shrink-0" />
+                <span className="truncate">Survey Responses</span>
+              </SheetTitle>
               <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-1">
-                <span className="text-sm text-slate-500 truncate max-w-[150px] md:max-w-[250px]">
+                <span className="text-sm text-slate-500 truncate max-w-[150px] md:max-w-[200px]">
                   {surveyTitle || 'Untitled Survey'}
                 </span>
                 <Badge variant="outline" className="text-xs border-violet-200 text-violet-600 bg-violet-50 flex-shrink-0">
@@ -234,7 +236,7 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                 </Badge>
               </div>
             </div>
-            <DrawerClose asChild>
+            <SheetClose asChild>
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -243,9 +245,9 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                 <X className="h-4 w-4" />
                 <span className="sr-only">Close</span>
               </Button>
-            </DrawerClose>
+            </SheetClose>
           </div>
-        </DrawerHeader>
+        </SheetHeader>
 
         {/* ─── Content ───────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-hidden min-h-0">
@@ -267,10 +269,11 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
               </p>
             </div>
           ) : (
-            <div className="h-full flex flex-col">
+            // ─── Content with Scroll ────────────────────────────────────
+            <div className="h-full flex flex-col overflow-hidden">
               {/* ─── Analytics Cards ────────────────────────────────────── */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-3 md:p-4 border-b border-slate-200 bg-slate-50/50 flex-shrink-0">
-                <Card className="border-0 bg-white shadow-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 p-3 md:p-4 border-b border-slate-200 bg-white flex-shrink-0">
+                <Card className="border-0 shadow-sm bg-slate-50/80">
                   <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Star className="h-3 w-3 text-amber-500" />
@@ -281,7 +284,7 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="border-0 bg-white shadow-sm">
+                <Card className="border-0 shadow-sm bg-slate-50/80">
                   <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <ThumbsUp className="h-3 w-3 text-emerald-500" />
@@ -292,7 +295,7 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="border-0 bg-white shadow-sm">
+                <Card className="border-0 shadow-sm bg-slate-50/80">
                   <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Smile className="h-3 w-3 text-blue-500" />
@@ -303,7 +306,7 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="border-0 bg-white shadow-sm">
+                <Card className="border-0 shadow-sm bg-slate-50/80">
                   <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Users className="h-3 w-3 text-violet-500" />
@@ -317,8 +320,8 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
               </div>
 
               {/* ─── Summary Cards ──────────────────────────────────────── */}
-              <div className="grid grid-cols-3 gap-2 p-3 md:p-4 border-b border-slate-200 bg-slate-50/30 flex-shrink-0">
-                <Card className="border-emerald-200 bg-emerald-50/70">
+              <div className="grid grid-cols-3 gap-2 p-3 md:p-4 border-b border-slate-200 bg-white flex-shrink-0">
+                <Card className="border-emerald-200 bg-emerald-50/70 shadow-sm">
                   <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <UserCheck className="h-3.5 w-3.5 text-emerald-600" />
@@ -327,7 +330,7 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                     <p className="text-xl md:text-2xl font-bold text-emerald-700">{summary.promoters}</p>
                   </CardContent>
                 </Card>
-                <Card className="border-amber-200 bg-amber-50/70">
+                <Card className="border-amber-200 bg-amber-50/70 shadow-sm">
                   <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <UserMinus className="h-3.5 w-3.5 text-amber-600" />
@@ -336,7 +339,7 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                     <p className="text-xl md:text-2xl font-bold text-amber-700">{summary.passives}</p>
                   </CardContent>
                 </Card>
-                <Card className="border-rose-200 bg-rose-50/70">
+                <Card className="border-rose-200 bg-rose-50/70 shadow-sm">
                   <CardContent className="p-2 md:p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <UserX className="h-3.5 w-3.5 text-rose-600" />
@@ -347,9 +350,9 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                 </Card>
               </div>
 
-              {/* ─── Response List ──────────────────────────────────────── */}
-              <ScrollArea className="flex-1 p-3 md:p-4">
-                <div className="space-y-3">
+              {/* ─── Response List - Scrollable ────────────────────────── */}
+              <div className="flex-1 overflow-y-auto p-3 md:p-4">
+                <div className="space-y-3 pb-4">
                   {responses.map((response) => {
                     const score = response.score || 0;
                     const category = getCategory(score);
@@ -362,7 +365,7 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                         open={isExpanded}
                         onOpenChange={() => toggleExpand(response.id)}
                       >
-                        <Card className="overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200">
+                        <Card className="overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200 bg-white">
                           <CardContent className="p-0">
                             {/* Response Header */}
                             <CollapsibleTrigger asChild>
@@ -440,13 +443,13 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                             <CollapsibleContent>
                               <div className="border-t border-slate-200 px-3 md:px-4 py-3 bg-slate-50/50">
                                 {displayAnswers.length > 0 ? (
-                                  <div className="space-y-3">
+                                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
                                     {displayAnswers.map((item, index) => (
                                       <div key={index} className="space-y-1">
                                         <p className="text-xs font-medium text-slate-500">
                                           {item.question}
                                         </p>
-                                        <p className="text-sm bg-white p-2 md:p-3 rounded-lg border border-slate-200 text-slate-700">
+                                        <p className="text-sm bg-white p-2 md:p-3 rounded-lg border border-slate-200 text-slate-700 break-words">
                                           {renderAnswerValue(item.answer)}
                                         </p>
                                       </div>
@@ -465,24 +468,23 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                     );
                   })}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           )}
         </div>
 
         {/* ─── Footer ────────────────────────────────────────────────────── */}
-        <DrawerFooter className="border-t border-slate-200 flex-shrink-0">
-          <DrawerClose asChild>
-            <Button 
-              variant="outline" 
-              className="w-full rounded-xl border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors duration-200"
-            >
-              Close
-            </Button>
-          </DrawerClose>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+        <div className="border-t border-slate-200 px-4 md:px-6 py-3 md:py-4 flex-shrink-0 bg-white">
+          <Button 
+            variant="outline" 
+            className="w-full rounded-xl border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors duration-200"
+            onClick={() => onOpenChange(false)}
+          >
+            Close
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 };
 

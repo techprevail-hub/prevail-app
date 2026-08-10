@@ -358,7 +358,6 @@ export default function NPSDashboardPage() {
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="scheduled">Scheduled</SelectItem>
             <SelectItem value="sent">Sent</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
           </SelectContent>
