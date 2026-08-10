@@ -63,7 +63,7 @@ function getProfilePath(role: string): string {
   if (role === "student" || role === "job_seeker") return "/dashboard/seeker/seekers-profile";
   if (role === "coach")     return "/dashboard/coach/profile";
   if (role === "institute") return "/dashboard/institute/profile";
-  return "/dashboard/settings";
+  return "NEXT_PUBLIC_SUPABASE_ANON_KEY";
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
