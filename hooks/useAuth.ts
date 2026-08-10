@@ -1,11 +1,12 @@
-// hooks/useAuth.ts
+"use client";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { User } from "@supabase/supabase-js";
+import { User, Session } from "@supabase/supabase-js";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,14 +23,16 @@ export function useAuth() {
           console.error("Auth session error:", error);
         }
 
-        if (mounted) {
-          setUser(session?.user || null);
-          setLoading(false);
-        }
+        if (!mounted) return;
+
+        setSession(session);
+        setUser(session?.user || null);
+        setLoading(false);
       } catch (error) {
         console.error("Auth initialization error:", error);
 
         if (mounted) {
+          setSession(null);
           setUser(null);
           setLoading(false);
         }
@@ -41,10 +44,11 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) {
-        setUser(session?.user || null);
-        setLoading(false);
-      }
+      if (!mounted) return;
+
+      setSession(session);
+      setUser(session?.user || null);
+      setLoading(false);
     });
 
     return () => {
@@ -55,6 +59,8 @@ export function useAuth() {
 
   return {
     user,
+    session,
+    accessToken: session?.access_token || null,
     loading,
   };
 }

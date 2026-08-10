@@ -27,7 +27,12 @@ interface SurveyData {
 export default function SurveyContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const {
+    user,
+    session,
+    accessToken,
+    loading: authLoading,
+  } = useAuth();
   
   const surveyId = searchParams.get('surveyId');
   const token = searchParams.get('token');
@@ -48,39 +53,21 @@ export default function SurveyContent() {
     return encodeURIComponent(value);
   };
 
-  // ✅ FIXED: Authentication useEffect with proper handling for all cases
+  // ✅ FIXED: Authentication useEffect - uses Supabase session directly
   useEffect(() => {
     if (authLoading) {
       return;
     }
 
-    const storedToken = localStorage.getItem("token");
-
-    console.log("🔐 Survey auth check:", {
-      userExists: !!user,
-      tokenExists: !!storedToken,
-    });
-
-    // Case 1: User is logged in + application token exists
-    if (user && storedToken) {
+    // User is logged in with valid Supabase session
+    if (user && session) {
+      console.log("✅ Survey user authenticated:", user.id);
       setIsAuthenticated(true);
-      setAuthToken(storedToken);
+      setAuthToken(accessToken);
       return;
     }
 
-    // Case 2: User is logged in but application token is missing
-    if (user && !storedToken) {
-      console.warn("⚠️ User exists but application token is missing");
-      setIsAuthenticated(false);
-      setError(
-        "Authentication token not found. Please log in again."
-      );
-      return;
-    }
-
-    // Case 3: User is not logged in
-    // Even if an old application token exists, we cannot assume
-    // the Supabase user session is valid.
+    // User is not logged in - redirect to login
     if (!user) {
       const redirectUrl =
         `/dashboard/seeker/nps-survey` +
@@ -91,11 +78,12 @@ export default function SurveyContent() {
       router.push(
         `/login?redirect=${encodeURIComponent(redirectUrl)}`
       );
-
       return;
     }
   }, [
     user,
+    session,
+    accessToken,
     authLoading,
     router,
     surveyId,
@@ -155,7 +143,7 @@ export default function SurveyContent() {
     studentId,
   ]);
 
-  // ✅ Updated fetchSurvey with encoded parameters
+  // ✅ Updated fetchSurvey - uses accessToken from Supabase session
   const fetchSurvey = async () => {
     try {
       setLoading(true);
@@ -168,12 +156,12 @@ export default function SurveyContent() {
         authToken: authToken ? 'present' : 'missing'
       });
 
-      // ✅ Make sure authToken is valid
-      if (!authToken) {
-        throw new Error('Authentication token is missing. Please log in again.');
+      // ✅ Use accessToken from Supabase session
+      if (!accessToken) {
+        throw new Error('Authentication session is not available. Please log in again.');
       }
 
-      // ✅ Safely encode URL parameters - using non-null assertion since we validated above
+      // ✅ Safely encode URL parameters
       const encodedToken = encodeURIComponent(token as string);
       const encodedStudentId = encodeURIComponent(studentId as string);
       
@@ -181,9 +169,10 @@ export default function SurveyContent() {
 
       console.log('📡 API URL:', apiUrl);
 
+      // ✅ Use accessToken from Supabase session in Authorization header
       const response = await fetch(apiUrl, {
         headers: {
-          'Authorization': `Bearer ${authToken}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
       });
@@ -255,8 +244,9 @@ export default function SurveyContent() {
       setSubmitting(true);
       setError(null);
 
-      if (!authToken) {
-        throw new Error('Authentication token is missing. Please log in again.');
+      // ✅ Use accessToken from Supabase session
+      if (!accessToken) {
+        throw new Error('Authentication session is not available. Please log in again.');
       }
 
       // ✅ Use institute_id from survey data
@@ -280,12 +270,13 @@ export default function SurveyContent() {
 
       console.log('📋 Request body:', requestBody);
 
+      // ✅ Use accessToken from Supabase session in Authorization header
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/role-seeker/nps/surveys/${surveyId}/submit`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${authToken}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(requestBody),
