@@ -166,10 +166,16 @@ export default function InstituteProfilePage() {
   const [newCourse, setNewCourse] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
+  const [imageError, setImageError] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasFetchedProfile = useRef(false);
+  
+  // Track original values to detect changes
+  const originalProfileRef = useRef<InstituteProfile>(EMPTY_PROFILE);
+  const originalCoursesRef = useRef<string[]>([]);
 
   // ─── Fetch Profile ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -235,6 +241,12 @@ export default function InstituteProfilePage() {
         setProfile(profileData);
         setDraft(profileData);
         setDraftCourses(profileData.courses);
+        // Store original values for change detection
+        originalProfileRef.current = JSON.parse(JSON.stringify(profileData));
+        originalCoursesRef.current = [...profileData.courses];
+        setImageError(false);
+        setSelectedLogoFile(null);
+        setHasChanges(false);
       } else {
         // No institute_profile record yet.
         // Use logged-in user's data from localStorage.
@@ -247,6 +259,9 @@ export default function InstituteProfilePage() {
         setProfile(profileData);
         setDraft(profileData);
         setDraftCourses([]);
+        originalProfileRef.current = JSON.parse(JSON.stringify(profileData));
+        originalCoursesRef.current = [];
+        setHasChanges(false);
       }
     } catch (error) {
       console.error("Error fetching institute profile:", error);
@@ -284,68 +299,83 @@ export default function InstituteProfilePage() {
       setProfile(profileData);
       setDraft(profileData);
       setDraftCourses([]);
+      originalProfileRef.current = JSON.parse(JSON.stringify(profileData));
+      originalCoursesRef.current = [];
+      setHasChanges(false);
     } finally {
       setIsLoading(false);
     }
   };
 
   // ─── Handle File Selection ─────────────────────────────────────────────
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
+    // Validate file type - only JPEG, PNG, WEBP
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
-      toast.error("Please select a valid image file (JPEG, PNG, GIF, WEBP, or SVG).");
+      toast.error("Please select a valid image file (JPEG, PNG, or WEBP).");
+      event.target.value = "";
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File size must be less than 5MB.");
+      event.target.value = "";
       return;
     }
 
-    try {
-      setIsUploading(true);
-      console.log("Uploading institute logo:", file.name);
+    // Store the actual file - it will be sent when Save Changes is clicked
+    setSelectedLogoFile(file);
 
-      const formData = new FormData();
-      formData.append("logo", file);
+    // Create temporary preview
+    const previewUrl = URL.createObjectURL(file);
+    
+    setDraft((prev) => ({
+      ...prev,
+      logo_url: previewUrl,
+    }));
 
-      const response = await api.post(
-        "/api/role-institute/profile/logo",
-        formData,
-        {
-          isFormData: true,
-        }
-      );
+    // Reset image error state
+    setImageError(false);
+    setHasChanges(true);
 
-      console.log("Logo upload response:", response);
+    toast.success("Image selected. Click Save Changes to upload.");
 
-      const logoUrl = response?.data?.logo_url || response?.logo_url;
+    // Reset file input
+    event.target.value = "";
+  };
 
-      if (!logoUrl) {
-        throw new Error("Logo URL was not returned by the server.");
-      }
+  // ─── Handle Input Change ──────────────────────────────────────────────
+  const handleChange = (key: keyof InstituteProfile, value: string) => {
+    setDraft((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+    setHasChanges(true);
+  };
 
-      // Save actual URL in local draft
-      setDraft((prev) => ({
-        ...prev,
-        logo_url: logoUrl,
-      }));
-
-      toast.success("Institute logo uploaded successfully.");
-
-    } catch (error: any) {
-      console.error("❌ Logo upload failed:", error);
-      toast.error(error?.message || "Failed to upload institute logo.");
-    } finally {
-      setIsUploading(false);
-      // Allow selecting the same file again
-      event.target.value = "";
+  // ─── Courses Management ──────────────────────────────────────────────
+  const addCourse = () => {
+    const course = newCourse.trim();
+    if (!course) {
+      toast.error("Please enter a course name.");
+      return;
     }
+    if (draftCourses.includes(course)) {
+      toast.error("Course already added.");
+      return;
+    }
+    setDraftCourses((prev) => [...prev, course]);
+    setNewCourse("");
+    setHasChanges(true);
+  };
+
+  const removeCourse = (courseToRemove: string) => {
+    setDraftCourses((prev) => prev.filter((c) => c !== courseToRemove));
+    setHasChanges(true);
   };
 
   // ─── Save Profile ──────────────────────────────────────────────────────
@@ -353,19 +383,85 @@ export default function InstituteProfilePage() {
     try {
       setIsSaving(true);
 
-      const payload = {
-        institute_name: draft.institute_name,
-        email: draft.email,
-        logo_url: draft.logo_url || "",
-        phone: draft.phone || "",
-        address: draft.address || "",
-        city: draft.city || "",
-        state: draft.state || "",
-        country: draft.country || "",
-        courses: draftCourses,
-      };
+      const formData = new FormData();
 
-      const response = await api.put("/api/role-institute/profile/update", payload);
+      // Track which fields have changed
+      const original = originalProfileRef.current;
+      const current = draft;
+
+      // Only append fields that have changed or if a new file is selected
+      if (current.institute_name !== original.institute_name) {
+        formData.append("institute_name", current.institute_name || "");
+      }
+
+      if (current.phone !== original.phone) {
+        formData.append("phone", current.phone || "");
+      }
+
+      if (current.address !== original.address) {
+        formData.append("address", current.address || "");
+      }
+
+      if (current.city !== original.city) {
+        formData.append("city", current.city || "");
+      }
+
+      if (current.state !== original.state) {
+        formData.append("state", current.state || "");
+      }
+
+      if (current.country !== original.country) {
+        formData.append("country", current.country || "");
+      }
+
+      // Check if courses changed
+      const coursesChanged = JSON.stringify(draftCourses) !== JSON.stringify(originalCoursesRef.current);
+      if (coursesChanged) {
+        // Send courses as JSON string - will be parsed on backend
+        formData.append("courses", JSON.stringify(draftCourses));
+      }
+
+      // Logo file - if selected
+      if (selectedLogoFile) {
+        formData.append("logo", selectedLogoFile);
+      }
+
+      // Email is always included (it's disabled anyway)
+      formData.append("email", current.email || "");
+
+      // Check if there's actually anything to update
+      const hasDataToSend = formData.has("institute_name") || 
+                           formData.has("phone") || 
+                           formData.has("address") || 
+                           formData.has("city") || 
+                           formData.has("state") || 
+                           formData.has("country") || 
+                           formData.has("courses") || 
+                           selectedLogoFile;
+
+      if (!hasDataToSend) {
+        toast.info("No changes to save.");
+        setEditing(false);
+        setIsSaving(false);
+        return;
+      }
+
+      console.log("Updating institute profile with changed fields...");
+      
+      // Log what's being sent
+      for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
+      }
+
+      const response = await api.put(
+        "/api/role-institute/profile/update",
+        formData,
+        {
+          isFormData: true,
+        }
+      );
+
+      console.log("Profile update response:", response);
 
       if (response?.success) {
         toast.success("Profile updated successfully.");
@@ -392,15 +488,22 @@ export default function InstituteProfilePage() {
           setProfile(updatedProfile);
           setDraft(updatedProfile);
           setDraftCourses(updatedProfile.courses);
+          // Update original values
+          originalProfileRef.current = JSON.parse(JSON.stringify(updatedProfile));
+          originalCoursesRef.current = [...updatedProfile.courses];
+          setImageError(false);
         }
 
+        // Clear selected file after successful save
+        setSelectedLogoFile(null);
+        setHasChanges(false);
         setEditing(false);
       } else {
         toast.error(response?.message || "Failed to update institute profile.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating institute profile:", error);
-      toast.error("Failed to update institute profile.");
+      toast.error(error?.message || "Failed to update institute profile.");
     } finally {
       setIsSaving(false);
     }
@@ -410,34 +513,10 @@ export default function InstituteProfilePage() {
   const cancelEdit = () => {
     setDraft(profile);
     setDraftCourses(profile.courses);
+    setSelectedLogoFile(null);
+    setImageError(false);
+    setHasChanges(false);
     setEditing(false);
-  };
-
-  // ─── Handle Input Change ──────────────────────────────────────────────
-  const handleChange = (key: keyof InstituteProfile, value: string) => {
-    setDraft((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
-
-  // ─── Courses Management ──────────────────────────────────────────────
-  const addCourse = () => {
-    const course = newCourse.trim();
-    if (!course) {
-      toast.error("Please enter a course name.");
-      return;
-    }
-    if (draftCourses.includes(course)) {
-      toast.error("Course already added.");
-      return;
-    }
-    setDraftCourses((prev) => [...prev, course]);
-    setNewCourse("");
-  };
-
-  const removeCourse = (courseToRemove: string) => {
-    setDraftCourses((prev) => prev.filter((c) => c !== courseToRemove));
   };
 
   // ─── Completion % ──────────────────────────────────────────────────────
@@ -536,7 +615,7 @@ export default function InstituteProfilePage() {
                   <button
                     className="sp-btn-save"
                     onClick={saveProfile}
-                    disabled={isSaving}
+                    disabled={isSaving || !hasChanges}
                   >
                     {isSaving ? (
                       <>Saving...</>
@@ -567,7 +646,7 @@ export default function InstituteProfilePage() {
                 <div className="sp-avatar-banner" />
                 <div className="sp-avatar-wrap">
                   <div className="sp-avatar-circle">
-                    {dp.logo_url ? (
+                    {dp.logo_url && !imageError ? (
                       <img
                         src={dp.logo_url}
                         alt={dp.institute_name}
@@ -578,16 +657,31 @@ export default function InstituteProfilePage() {
                           borderRadius: "50%",
                         }}
                         onError={(e) => {
-                          // If image fails to load, show initials
+                          console.error("Image failed to load");
+                          setImageError(true);
                           e.currentTarget.style.display = "none";
-                          const parent = e.currentTarget.parentElement;
-                          if (parent) {
-                            parent.textContent = getInitials(dp.institute_name);
-                          }
+                        }}
+                        onLoad={() => {
+                          setImageError(false);
                         }}
                       />
                     ) : (
-                      getInitials(dp.institute_name)
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "#e0e7ff",
+                          borderRadius: "50%",
+                          fontSize: "24px",
+                          fontWeight: "600",
+                          color: "#4f46e5",
+                        }}
+                      >
+                        {getInitials(dp.institute_name)}
+                      </div>
                     )}
                   </div>
                   {editing && (
@@ -595,21 +689,17 @@ export default function InstituteProfilePage() {
                       <button
                         className="sp-avatar-edit"
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={isUploading}
+                        disabled={isSaving}
                       >
-                        {isUploading ? (
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Upload size={10} />
-                        )}
+                        <Upload size={10} />
                       </button>
                       <input
                         type="file"
                         ref={fileInputRef}
                         onChange={handleFileSelect}
-                        accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                        accept="image/jpeg,image/png,image/webp"
                         className="hidden"
-                        disabled={isUploading}
+                        disabled={isSaving}
                       />
                     </>
                   )}
@@ -626,6 +716,19 @@ export default function InstituteProfilePage() {
                       : dp.city || dp.state || "Location"}
                   </span>
                 </div>
+                {editing && (
+                  <div className="mt-3 text-center">
+                    <p className="text-xs text-gray-400">
+                      Click the camera icon to upload logo
+                    </p>
+                    <p className="text-xs text-gray-400">Max 5MB (JPEG, PNG, WEBP)</p>
+                    {selectedLogoFile && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✓ New logo selected
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Completion */}
@@ -750,53 +853,6 @@ export default function InstituteProfilePage() {
                 </div>
               </Section>
 
-              {/* Logo Upload Section */}
-              <Section icon={ImageIcon} title="Institute Logo">
-                <div className="sp-field">
-                  <p className="sp-field-label">
-                    <Upload size={11} className="sp-field-icon" />
-                    Upload Logo
-                  </p>
-                  <div className="flex gap-2 items-center">
-                    <Button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="sp-btn-edit"
-                      style={{ whiteSpace: "nowrap" }}
-                      disabled={isUploading}
-                    >
-                      {isUploading ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload size={13} className="mr-2" />
-                          Choose File
-                        </>
-                      )}
-                    </Button>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileSelect}
-                      accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
-                      className="hidden"
-                      disabled={isUploading}
-                    />
-                    <span className="text-xs text-gray-400">
-                      Max 5MB (JPEG, PNG, GIF, WEBP, SVG)
-                    </span>
-                  </div>
-                  {dp.logo_url && (
-                    <p className="text-xs text-green-600 mt-1">
-                      ✓ Logo uploaded successfully
-                    </p>
-                  )}
-                </div>
-              </Section>
-
               {/* Courses Section */}
               <Section icon={GraduationCap} title="Courses Provided" accent>
                 <div>
@@ -864,37 +920,6 @@ export default function InstituteProfilePage() {
                   )}
                 </div>
               </Section>
-
-              {/* Sticky save bar */}
-              {editing && (
-                <div className="sp-save-bar">
-                  <p className="sp-save-hint">
-                    <Check size={13} /> Unsaved changes
-                  </p>
-                  <div className="sp-actions">
-                    <button
-                      className="sp-btn-cancel"
-                      onClick={cancelEdit}
-                      disabled={isSaving}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      className="sp-btn-save"
-                      onClick={saveProfile}
-                      disabled={isSaving}
-                    >
-                      {isSaving ? (
-                        "Saving..."
-                      ) : (
-                        <>
-                          <Check size={13} /> Save Changes
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
             </main>
           </div>
         </div>
