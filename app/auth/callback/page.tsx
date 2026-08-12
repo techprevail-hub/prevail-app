@@ -168,59 +168,140 @@ export default function CallbackPage() {
         }
 
         // ─── Step 6: Normal flow - Check user role and redirect ──────
-        
-        // If user exists (or was just created)
-        if (existingUser) {
-          // If user already has a role
-          if (existingUser.role) {
-            console.log("User has role:", existingUser.role);
-            
-            // Check if onboarding already exists for this user
-            const { data: onboardingData, error: onboardingError } = await supabase
-              .from("onboarding")
-              .select("id")
-              .eq("user_id", user.id)
-              .maybeSingle();
 
-            if (onboardingError) {
-              console.error("Error checking onboarding:", onboardingError);
+      // If user exists (or was just created)
+      if (existingUser) {
+        // If user already has a role
+        if (existingUser.role) {
+          console.log("User has role:", existingUser.role);
+
+          // --------------------------------------------------
+          // CREATE INSTITUTE PROFILE IF REQUIRED
+          // --------------------------------------------------
+          if (existingUser.role === "institute") {
+            try {
+              console.log(
+                "Checking/creating institute profile..."
+              );
+
+              const profileResponse = await api.post(
+                "/api/role-institute/profile/create",
+                {}
+              );
+              console.log(
+                "Institute profile response:",
+                profileResponse
+              );
+
+              console.log(
+                "✅ Institute profile initialized successfully."
+              );
+            } catch (profileError) {
+              console.error(
+                "❌ Institute profile initialization failed:",
+                profileError
+              );
+
+              // Do not stop the existing login flow
+              // if profile creation fails.
             }
-
-            console.log("Onboarding data exists:", !!onboardingData);
-
-            // If onboarding data exists, user has completed onboarding
-            if (onboardingData) {
-              console.log("User has completed onboarding, redirecting to dashboard");
-              // User has completed onboarding - go to dashboard
-              if (existingUser.role === "student" || existingUser.role === "job_seeker") {
-                setRedirectTo("/dashboard/seeker");
-              } else if (existingUser.role === "coach") {
-                setRedirectTo("/dashboard/coach");
-              } else if (existingUser.role === "institute") {
-                setRedirectTo("/dashboard/institute");
-              } else {
-                setRedirectTo("/select-role");
-              }
-            } else {
-              console.log("User has role but no onboarding data, redirecting to onboarding");
-              // User has role but hasn't completed onboarding
-              localStorage.setItem("userRole", existingUser.role);
-              setRedirectTo("/onboarding");
-            }
-            return;
-          } else {
-            // User exists but no role assigned
-            console.log("Existing user has no role");
-            localStorage.setItem("userId", user.id);
-            setRedirectTo("/select-role");
-            return;
           }
+
+          // --------------------------------------------------
+          // EXISTING ONBOARDING LOGIC
+          // --------------------------------------------------
+
+          // Check if onboarding already exists for this user
+          const {
+            data: onboardingData,
+            error: onboardingError,
+          } = await supabase
+            .from("onboarding")
+            .select("id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (onboardingError) {
+            console.error(
+              "Error checking onboarding:",
+              onboardingError
+            );
+          }
+
+          console.log(
+            "Onboarding data exists:",
+            !!onboardingData
+          );
+
+          // If onboarding data exists, user has completed onboarding
+          if (onboardingData) {
+            console.log(
+              "User has completed onboarding, redirecting to dashboard"
+            );
+
+            // User has completed onboarding - go to dashboard
+            if (
+              existingUser.role === "student" ||
+              existingUser.role === "job_seeker"
+            ) {
+              setRedirectTo("/dashboard/seeker");
+
+            } else if (
+              existingUser.role === "coach"
+            ) {
+              setRedirectTo("/dashboard/coach");
+
+            } else if (
+              existingUser.role === "institute"
+            ) {
+              setRedirectTo("/dashboard/institute");
+
+            } else {
+              setRedirectTo("/select-role");
+            }
+
+          } else {
+            console.log(
+              "User has role but no onboarding data, redirecting to onboarding"
+            );
+
+            localStorage.setItem(
+              "userRole",
+              existingUser.role
+            );
+
+            setRedirectTo("/onboarding");
+          }
+
+          return;
+
         } else {
-          // This is a new user (just inserted)
-          console.log("New user created, redirecting to select-role");
-          localStorage.setItem("userId", user.id);
+          // User exists but no role assigned
+          console.log("Existing user has no role");
+
+          localStorage.setItem(
+            "userId",
+            user.id
+          );
+
           setRedirectTo("/select-role");
+
+          return;
         }
+
+      } else {
+        // This is a new user (just inserted)
+        console.log(
+          "New user created, redirecting to select-role"
+        );
+
+        localStorage.setItem(
+          "userId",
+          user.id
+        );
+
+        setRedirectTo("/select-role");
+      }
         
       } catch (err) {
         console.error("Auth callback error:", err);

@@ -166,10 +166,19 @@ export default function InstituteProfilePage() {
   const [newCourse, setNewCourse] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const hasFetchedProfile = useRef(false);
 
   // ─── Fetch Profile ──────────────────────────────────────────────────────
   useEffect(() => {
+    // Prevent duplicate API calls in React Strict Mode
+    if (hasFetchedProfile.current) {
+      return;
+    }
+    hasFetchedProfile.current = true;
+    
     fetchInstituteProfile();
   }, []);
 
@@ -281,7 +290,7 @@ export default function InstituteProfilePage() {
   };
 
   // ─── Handle File Selection ─────────────────────────────────────────────
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -298,20 +307,44 @@ export default function InstituteProfilePage() {
       return;
     }
 
-    // Get just the filename
-    const fileName = file.name;
-    
-    // Update the draft with the filename
-    setDraft((prev) => ({
-      ...prev,
-      logo_url: fileName,
-    }));
+    try {
+      setIsUploading(true);
+      console.log("Uploading institute logo:", file.name);
 
-    toast.success(`Selected: ${fileName}`);
+      const formData = new FormData();
+      formData.append("logo", file);
 
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      const response = await api.post(
+        "/api/role-institute/profile/logo",
+        formData,
+        {
+          isFormData: true,
+        }
+      );
+
+      console.log("Logo upload response:", response);
+
+      const logoUrl = response?.data?.logo_url || response?.logo_url;
+
+      if (!logoUrl) {
+        throw new Error("Logo URL was not returned by the server.");
+      }
+
+      // Save actual URL in local draft
+      setDraft((prev) => ({
+        ...prev,
+        logo_url: logoUrl,
+      }));
+
+      toast.success("Institute logo uploaded successfully.");
+
+    } catch (error: any) {
+      console.error("❌ Logo upload failed:", error);
+      toast.error(error?.message || "Failed to upload institute logo.");
+    } finally {
+      setIsUploading(false);
+      // Allow selecting the same file again
+      event.target.value = "";
     }
   };
 
@@ -534,7 +567,7 @@ export default function InstituteProfilePage() {
                 <div className="sp-avatar-banner" />
                 <div className="sp-avatar-wrap">
                   <div className="sp-avatar-circle">
-                    {dp.logo_url && dp.logo_url.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) ? (
+                    {dp.logo_url ? (
                       <img
                         src={dp.logo_url}
                         alt={dp.institute_name}
@@ -547,7 +580,10 @@ export default function InstituteProfilePage() {
                         onError={(e) => {
                           // If image fails to load, show initials
                           e.currentTarget.style.display = "none";
-                          e.currentTarget.parentElement!.textContent = getInitials(dp.institute_name);
+                          const parent = e.currentTarget.parentElement;
+                          if (parent) {
+                            parent.textContent = getInitials(dp.institute_name);
+                          }
                         }}
                       />
                     ) : (
@@ -559,8 +595,13 @@ export default function InstituteProfilePage() {
                       <button
                         className="sp-avatar-edit"
                         onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
                       >
-                        <Upload size={10} />
+                        {isUploading ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Upload size={10} />
+                        )}
                       </button>
                       <input
                         type="file"
@@ -568,6 +609,7 @@ export default function InstituteProfilePage() {
                         onChange={handleFileSelect}
                         accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
                         className="hidden"
+                        disabled={isUploading}
                       />
                     </>
                   )}
@@ -655,49 +697,6 @@ export default function InstituteProfilePage() {
                     disabled={true}
                   />
                   <Field
-                    icon={ImageIcon}
-                    label="Logo URL"
-                    value={dp.logo_url || ""}
-                    editing={editing}
-                    name="logo_url"
-                    onChange={handleChange}
-                    placeholder="Enter logo URL or select a file"
-                  />
-                  {editing && (
-                    <div className="sp-field">
-                      <p className="sp-field-label">
-                        <Upload size={11} className="sp-field-icon" />
-                        Upload Logo
-                      </p>
-                      <div className="flex gap-2 items-center">
-                        <Button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="sp-btn-edit"
-                          style={{ whiteSpace: "nowrap" }}
-                        >
-                          <Upload size={13} className="mr-2" />
-                          Choose File
-                        </Button>
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileSelect}
-                          accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
-                          className="hidden"
-                        />
-                        <span className="text-xs text-gray-400">
-                          Max 5MB (JPEG, PNG, GIF, WEBP, SVG)
-                        </span>
-                      </div>
-                      {dp.logo_url && (
-                        <p className="text-xs text-green-600 mt-1">
-                          Selected: {dp.logo_url}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  <Field
                     icon={Phone}
                     label="Phone Number"
                     value={dp.phone || ""}
@@ -748,6 +747,53 @@ export default function InstituteProfilePage() {
                     onChange={handleChange}
                     placeholder="Enter country"
                   />
+                </div>
+              </Section>
+
+              {/* Logo Upload Section */}
+              <Section icon={ImageIcon} title="Institute Logo">
+                <div className="sp-field">
+                  <p className="sp-field-label">
+                    <Upload size={11} className="sp-field-icon" />
+                    Upload Logo
+                  </p>
+                  <div className="flex gap-2 items-center">
+                    <Button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="sp-btn-edit"
+                      style={{ whiteSpace: "nowrap" }}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={13} className="mr-2" />
+                          Choose File
+                        </>
+                      )}
+                    </Button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                      accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                      className="hidden"
+                      disabled={isUploading}
+                    />
+                    <span className="text-xs text-gray-400">
+                      Max 5MB (JPEG, PNG, GIF, WEBP, SVG)
+                    </span>
+                  </div>
+                  {dp.logo_url && (
+                    <p className="text-xs text-green-600 mt-1">
+                      ✓ Logo uploaded successfully
+                    </p>
+                  )}
                 </div>
               </Section>
 
