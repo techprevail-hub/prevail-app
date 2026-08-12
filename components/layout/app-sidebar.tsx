@@ -78,7 +78,6 @@ const NAV_CONFIG: Record<string, NavItem[]> = {
     { label: "Students",       href: "/dashboard/institute/students",       icon: Users },
     { label: "Coaches",        href: "/dashboard/institute/coaches",        icon: Award },
     { label: "NPS",            href: "/dashboard/institute/nps",            icon: Star },
-    { label: "Progress",       href: "/dashboard/institute/progress",       icon: TrendingUp },
     { label: "Placement",      href: "/dashboard/institute/placement",      icon: Briefcase },
     { label: "Reports",        href: "/dashboard/institute/reports",        icon: BarChart3 },
     { label: "Settings",       href: "/dashboard/institute/settings",       icon: Settings },

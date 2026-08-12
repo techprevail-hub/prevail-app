@@ -61,8 +61,8 @@ function getInitials(name: string, email: string): string {
 
 function getProfilePath(role: string): string {
   if (role === "student" || role === "job_seeker") return "/dashboard/seeker/seekers-profile";
-  if (role === "coach")     return "/dashboard/coach/profile";
-  if (role === "institute") return "/dashboard/institute/profile";
+  if (role === "coach")     return "/dashboard/coach/coach-profile";
+  if (role === "institute") return "/dashboard/institute/institute-profile";
   return "/dashboard/seeker/seekers-profile";
 }
 
