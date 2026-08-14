@@ -38,11 +38,11 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  User,
   ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { instituteNpsService } from '@/services/instituteNpsService';
+import ExportDataButton from '@/components/role-institute/ExportDataButton';
 import type {
   SurveyResponseWithDetails,
   SurveyResponsesResponse,
@@ -61,7 +61,7 @@ interface SurveyResponseDrawerProps {
 // ─── Helper Functions ──────────────────────────────────────────────────────
 const getScoreColor = (score: number): string => {
   if (score >= 9) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
-  if (score >= 7) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+  if (score >= 7) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-emerald-400';
   return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400';
 };
 
@@ -110,12 +110,32 @@ const formatDate = (dateString: string): string => {
   });
 };
 
+const formatDateTime = (dateString: string): string => {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 const renderAnswerValue = (value: any): string => {
   if (value === null || value === undefined) return 'N/A';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 };
+
+// ─── Export Column Type ────────────────────────────────────────────────────
+interface ExportColumn {
+  key: string;
+  header: string;
+  format?: (value: any, row?: Record<string, any>) => string;
+  width?: number;
+}
 
 // ─── Component ─────────────────────────────────────────────────────────────
 export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
@@ -282,6 +302,73 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
     return [];
   }, []);
 
+  // ─── Export Columns Configuration ─────────────────────────────────────
+  const getExportColumns = (): ExportColumn[] => {
+    // Base columns always present with specific widths
+    const baseColumns: ExportColumn[] = [
+      { 
+        key: 'student_name', 
+        header: 'Student Name',
+        width: 30 // 30mm for name
+      },
+      { 
+        key: 'email', 
+        header: 'Email',
+        width: 45 // 45mm for email (wider)
+      },
+      { 
+        key: 'score', 
+        header: 'NPS Score',
+        width: 20 // 20mm for score
+      },
+      { 
+        key: 'category', 
+        header: 'Category',
+        width: 25 // 25mm for category
+      },
+      { 
+        key: 'submitted_at', 
+        header: 'Submitted Date',
+        width: 35, // 35mm for date
+        format: (value: string) => value ? formatDateTime(value) : 'N/A' 
+      },
+    ];
+
+    // Get all unique question keys from responses
+    const questionKeys = new Set<string>();
+    responses.forEach(response => {
+      if (response.answers_with_questions) {
+        response.answers_with_questions.forEach((q: any) => {
+          questionKeys.add(q.question);
+        });
+      }
+    });
+
+    // Add question columns with auto width (no specific width set)
+    const questionColumns: ExportColumn[] = Array.from(questionKeys).map(question => ({
+      key: question,
+      header: question,
+      format: (value: any, row: any) => {
+        // Find the answer for this question
+        if (row.answers_with_questions) {
+          const found = row.answers_with_questions.find((q: any) => q.question === question);
+          return found ? renderAnswerValue(found.answer) : 'N/A';
+        }
+        return 'N/A';
+      }
+      // No width specified - will auto-calculate
+    }));
+
+    return [...baseColumns, ...questionColumns];
+  };
+
+  // ─── Prepare Export Data ──────────────────────────────────────────────
+  const getExportData = () => {
+    return responses.map((response) => ({
+      ...response,
+    }));
+  };
+
   // ─── Render Student Detail Card (Separate Panel) ──────────────────────
   const renderStudentDetailPanel = (response: SurveyResponseWithDetails) => {
     const score = response.score || 0;
@@ -289,9 +376,8 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
     const displayAnswers = getAnswerDisplay(response);
 
     return (
-      // Main container - fixed position with explicit height
       <div className="fixed inset-y-0 left-0 z-[1000] flex h-screen w-[400px] flex-col overflow-hidden border-r border-slate-200 bg-white shadow-2xl animate-in slide-in-from-left duration-300">
-        {/* ─── Header - Fixed ────────────────────────────────────────────── */}
+        {/* Header - Fixed */}
         <div className="flex h-[60px] flex-shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4">
           <Button
             variant="ghost"
@@ -314,7 +400,7 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
           </Button>
         </div>
 
-        {/* ─── Student Info - Fixed ──────────────────────────────────────── */}
+        {/* Student Info - Fixed */}
         <div className="flex-shrink-0 border-b border-slate-200 bg-white px-4 py-4">
           <div className="flex items-start gap-3">
             <Avatar className="h-12 w-12 flex-shrink-0 bg-violet-100">
@@ -355,7 +441,7 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
           </div>
         </div>
 
-        {/* ─── Answers Section - Takes remaining space ───────────────────── */}
+        {/* Answers Section - Takes remaining space */}
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* Answers Heading - Fixed */}
           <div className="flex-shrink-0 px-4 pt-3 pb-2">
@@ -445,16 +531,35 @@ export const SurveyResponseDrawer: React.FC<SurveyResponseDrawerProps> = ({
                   )}
                 </div>
               </div>
-              <SheetClose asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 rounded-full hover:bg-slate-100 flex-shrink-0"
-                >
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Close</span>
-                </Button>
-              </SheetClose>
+              <div className="flex items-center gap-2">
+                {/* ─── Export Button ────────────────────────────────────── */}
+                {responses.length > 0 && (
+                  <ExportDataButton
+                    data={getExportData()}
+                    columns={getExportColumns()}
+                    filename={`survey-responses-${surveyTitle || 'export'}-${new Date().toISOString().split('T')[0]}`}
+                    title={`Survey Responses: ${surveyTitle || 'Untitled Survey'}`}
+                    subtitle={`Total Responses: ${totalItems} • Generated on ${new Date().toLocaleString()}`}
+                    buttonLabel="Export"
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-200 hover:border-violet-200 hover:bg-violet-50"
+                    onExport={(format: 'xlsx' | 'pdf') => {
+                      console.log(`Exported responses as ${format}`);
+                    }}
+                  />
+                )}
+                <SheetClose asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 rounded-full hover:bg-slate-100 flex-shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Close</span>
+                  </Button>
+                </SheetClose>
+              </div>
             </div>
           </SheetHeader>
 

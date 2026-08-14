@@ -51,6 +51,7 @@ import { instituteNpsService } from '@/services/instituteNpsService';
 import SurveyDialog from '@/components/role-institute/nps/SurveyDialog';
 import SendSurveyDialog from '@/components/role-institute/nps/SendSurveyDialog';
 import SurveyResponseDrawer from '@/components/role-institute/nps/SurveyResponseDrawer';
+import ExportDataButton from '@/components/role-institute/ExportDataButton';
 import type { Survey, ApiResponse, PaginatedResponse } from '@/types/instituteNps';
 
 // ─── Helper Functions ──────────────────────────────────────────────────────
@@ -91,6 +92,47 @@ const getInitials = (title: string): string => {
   return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
 };
 
+// ─── Export Columns Configuration with Widths ────────────────────────────
+const exportColumns = [
+  { 
+    key: 'title', 
+    header: 'Survey Title',
+    width: 35 // 35mm for title
+  },
+  { 
+    key: 'description', 
+    header: 'Description',
+    width: 40 // 40mm for description
+  },
+  { 
+    key: 'status', 
+    header: 'Status',
+    width: 25, // 25mm for status
+    format: (value: string) => value?.charAt(0).toUpperCase() + value?.slice(1) || 'N/A'
+  },
+  { 
+    key: 'send_after_days', 
+    header: 'Send After (Days)',
+    width: 30, // 30mm for days
+    format: (value: number) => value ? `${value} days` : 'N/A'
+  },
+  { 
+    key: 'created_at', 
+    header: 'Created Date',
+    width: 35, // 35mm for date
+    format: (value: string) => value ? formatDate(value) : 'N/A'
+  },
+  { 
+    key: 'question_count', 
+    header: 'Questions Count',
+    width: 25, // 25mm for count
+    format: (value: any, row: any) => {
+      const questions = row?.questions || [];
+      return questions.length || 0;
+    }
+  },
+];
+
 // ─── Component ─────────────────────────────────────────────────────────────
 export default function NPSDashboardPage() {
   // ─── State ──────────────────────────────────────────────────────────────
@@ -128,6 +170,9 @@ export default function NPSDashboardPage() {
   const [surveyToDelete, setSurveyToDelete] = useState<Survey | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // ─── Export Data ──────────────────────────────────────────────────────
+  const [exportData, setExportData] = useState<Record<string, any>[]>([]);
+
   // ─── Load Surveys ──────────────────────────────────────────────────────
   const loadSurveys = useCallback(async () => {
     try {
@@ -143,6 +188,8 @@ export default function NPSDashboardPage() {
 
       if (response && response.data) {
         setSurveys(response.data || []);
+        // Prepare data for export
+        setExportData(response.data || []);
         if (response.pagination) {
           setPagination({
             currentPage: response.pagination.page || 1,
@@ -156,11 +203,13 @@ export default function NPSDashboardPage() {
       } else {
         toast.error('Failed to load surveys');
         setSurveys([]);
+        setExportData([]);
       }
     } catch (error) {
       console.error('Error loading surveys:', error);
       toast.error('Failed to load surveys');
       setSurveys([]);
+      setExportData([]);
     } finally {
       setLoading(false);
     }
@@ -331,13 +380,30 @@ export default function NPSDashboardPage() {
           <h1 className="text-2xl font-bold text-slate-800">Survey Management</h1>
           <p className="text-sm text-slate-500 mt-1">Create and manage surveys to collect feedback from students</p>
         </div>
-        <Button 
-          onClick={handleCreateSurvey}
-          className="bg-gradient-to-r from-[#6C5CE7] to-[#8b7cf7] hover:from-[#5a4bd8] hover:to-[#7a6de7] text-white shadow-lg shadow-[#6C5CE7]/25"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create Survey
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* ─── Export Button ────────────────────────────────────────── */}
+          <ExportDataButton
+            data={exportData}
+            columns={exportColumns}
+            filename={`surveys-${new Date().toISOString().split('T')[0]}`}
+            title="Survey Management Report"
+            subtitle={`Total Surveys: ${surveys.length} • Generated on ${new Date().toLocaleString()}`}
+            buttonLabel="Export"
+            variant="outline"
+            size="default"
+            className="border-slate-200 hover:border-violet-200 hover:bg-violet-50"
+            onExport={(format: 'xlsx' | 'pdf') => {
+              console.log(`Exported surveys as ${format}`);
+            }}
+          />
+          <Button 
+            onClick={handleCreateSurvey}
+            className="bg-gradient-to-r from-[#6C5CE7] to-[#8b7cf7] hover:from-[#5a4bd8] hover:to-[#7a6de7] text-white shadow-lg shadow-[#6C5CE7]/25"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Create Survey
+          </Button>
+        </div>
       </div>
 
       {/* ─── Filters ────────────────────────────────────────────────────── */}
@@ -560,7 +626,7 @@ export default function NPSDashboardPage() {
                 onClick={() => handlePageChange(pagination.currentPage + 1)}
               >
                 Next
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentView" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </Button>
