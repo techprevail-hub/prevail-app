@@ -23,6 +23,8 @@ interface ResponseQueryParams {
   page?: number;
   limit?: number;
   search?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
 }
 
 interface CreateSurveyPayload {
@@ -35,6 +37,40 @@ interface CreateSurveyPayload {
 
 interface SendSurveyPayload {
   resend: boolean;
+  studentIds: string[];
+  coachIds: string[];
+}
+
+interface UpdateSurveyPayload {
+  title?: string;
+  description?: string;
+  selectedQuestions?: string[];
+  isActive?: boolean;
+  sendAfterDays?: number;
+  status?: string;
+}
+
+// ✅ Added: Create Question Payload
+// services/instituteNpsService.ts - Update the CreateQuestionPayload interface
+
+// ✅ Updated: Create Question Payload with ratingScale
+interface CreateQuestionPayload {
+  questionText: string;
+  questionType: string;
+  category?: string;
+  options?: string[];
+  isRequired?: boolean;
+  ratingScale?: number; // Added for rating questions
+}
+
+// ✅ Added: Update Question Payload
+interface UpdateQuestionPayload {
+  questionText?: string;
+  questionType?: string;
+  category?: string;
+  options?: string[];
+  isRequired?: boolean;
+  ratingScale?: number; // Added for rating questions
 }
 
 const BASE_URL = "/api/role-institute/nps";
@@ -75,7 +111,10 @@ export const instituteNpsService = {
     return api.post(`${BASE_URL}/surveys`, payload);
   },
 
-  async updateSurvey(id: string, payload: Partial<Survey>) {
+  async updateSurvey(
+    id: string,
+    payload: UpdateSurveyPayload
+  ) {
     return api.put(`${BASE_URL}/surveys/${id}`, payload);
   },
 
@@ -83,10 +122,9 @@ export const instituteNpsService = {
     return api.delete(`${BASE_URL}/surveys/${id}`);
   },
 
-  // ✅ Fixed
   async sendSurvey(
     id: string,
-    payload: SendSurveyPayload = { resend: false }
+    payload: SendSurveyPayload
   ) {
     return api.post(
       `${BASE_URL}/surveys/${id}/send`,
@@ -104,6 +142,29 @@ export const instituteNpsService = {
     return api.get(`${BASE_URL}/questions`);
   },
 
+  // ✅ Added: Get a single question by ID
+  async getSurveyQuestion(id: string): Promise<SurveyQuestion> {
+    return api.get(`${BASE_URL}/questions/${id}`);
+  },
+
+  // ✅ Added: Create a new question
+  async createQuestion(payload: CreateQuestionPayload) {
+    return api.post(`${BASE_URL}/questions`, payload);
+  },
+
+  // ✅ Added: Update an existing question
+  async updateQuestion(
+    id: string,
+    payload: UpdateQuestionPayload
+  ) {
+    return api.put(`${BASE_URL}/questions/${id}`, payload);
+  },
+
+  // ✅ Added: Delete a question
+  async deleteQuestion(id: string) {
+    return api.delete(`${BASE_URL}/questions/${id}`);
+  },
+
   /* -------------------------------------------------------------------------- */
   /*                              Survey Responses                              */
   /* -------------------------------------------------------------------------- */
@@ -117,6 +178,8 @@ export const instituteNpsService = {
     if (params.page) query.append("page", String(params.page));
     if (params.limit) query.append("limit", String(params.limit));
     if (params.search) query.append("search", params.search);
+    if (params.sortBy) query.append("sortBy", params.sortBy);
+    if (params.sortOrder) query.append("sortOrder", params.sortOrder);
 
     return api.get(
       `${BASE_URL}/surveys/${surveyId}/responses?${query.toString()}`

@@ -45,6 +45,7 @@ export interface FormFieldConfig {
   span?: 1 | 2;
   /** simple client-side validation, return error string or null */
   validate?: (value: string) => string | null;
+  onChange?: (value: string) => void;
 }
 
 export interface EntityFormDialogProps {

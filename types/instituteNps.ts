@@ -63,6 +63,7 @@ export interface SurveyQuestion {
   updated_at?: string;
   institute_id?: string | null;
   is_active?: boolean;
+  ratingScale?: number;                     // Added for rating questions
 }
 
 /* -------------------------------------------------------------------------- */
@@ -119,6 +120,7 @@ export interface SurveyResponse {
 export interface AnswerWithQuestion {
   question: string;
   answer: string;
+  npsScore?: number; // Optional NPS score for rating questions
 }
 
 export interface SurveyResponseWithDetails extends SurveyResponse {
@@ -126,6 +128,7 @@ export interface SurveyResponseWithDetails extends SurveyResponse {
   email?: string;
   score?: number;
   answers_with_questions?: AnswerWithQuestion[];
+  category?: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -140,6 +143,9 @@ export interface SurveyResponseAnalytics {
   totalRatingQuestions?: number;
   totalRecommendationQuestions?: number;
   totalSatisfactionQuestions?: number;
+  promoters?: number;
+  passives?: number;
+  detractors?: number;
 }
 
 /* -------------------------------------------------------------------------- */
