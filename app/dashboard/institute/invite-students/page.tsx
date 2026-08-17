@@ -89,6 +89,9 @@ import {
 } from "@/types/StudentInvitation";
 import { api } from "@/utils/apiServices";
 
+// Import ExportDataButton
+import ExportDataButton from "@/components/role-institute/ExportDataButton";
+
 // ─── Constants ──────────────────────────────────────────────────────────────
 const API_ENDPOINTS = {
   STUDENT_INVITATIONS: '/api/role-institute/student-invitations',
@@ -503,6 +506,16 @@ function getInitials(name: string) {
   return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
 }
 
+function formatDate(dateString: string) {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 // ─── Actions Component ──────────────────────────────────────────────────
 function InvitationActions({ 
   invitation, 
@@ -603,6 +616,50 @@ export default function StudentInvitationsPage() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [selectedInvitationId, setSelectedInvitationId] = useState<string | null>(null);
 
+  // ─── Export Data ──────────────────────────────────────────────────────
+  const [exportData, setExportData] = useState<Record<string, any>[]>([]);
+
+  // ─── Export Columns Configuration ────────────────────────────────────
+  const exportColumns = [
+    { 
+      key: 'student_name', 
+      header: 'Student Name',
+      width: 30
+    },
+    { 
+      key: 'email', 
+      header: 'Email',
+      width: 40
+    },
+    { 
+      key: 'course', 
+      header: 'Course',
+      width: 25
+    },
+    { 
+      key: 'branch', 
+      header: 'Branch',
+      width: 25
+    },
+    { 
+      key: 'batch', 
+      header: 'Batch',
+      width: 20
+    },
+    { 
+      key: 'status', 
+      header: 'Status',
+      width: 25,
+      format: (value: string) => value?.charAt(0).toUpperCase() + value?.slice(1) || 'N/A'
+    },
+    { 
+      key: 'created_at', 
+      header: 'Invited Date',
+      width: 30,
+      format: (value: string) => value ? formatDate(value) : 'N/A'
+    },
+  ];
+
   // ─── Fetch Invitations ──────────────────────────────────────────────────
   const fetchInvitations = useCallback(async () => {
     setLoading(true);
@@ -634,9 +691,11 @@ export default function StudentInvitationsPage() {
         console.log("Pagination Data:", paginationData);
         
         setInvitations(invitationsData);
+        setExportData(invitationsData);
         setPagination(paginationData);
       } else {
         setInvitations([]);
+        setExportData([]);
         setPagination(null);
         if (response?.message) {
           toast.error(response.message);
@@ -645,6 +704,7 @@ export default function StudentInvitationsPage() {
     } catch (error: any) {
       console.error("Fetch invitations error:", error);
       setInvitations([]);
+      setExportData([]);
       setPagination(null);
       if (error.response?.status !== 404) {
         toast.error(error.response?.data?.message || error.message || "Failed to load invitations");
@@ -806,6 +866,22 @@ export default function StudentInvitationsPage() {
             )}
             {templateLoading ? "Downloading..." : "Download Excel Template"}
           </Button>
+
+          {/* ✅ Export Button */}
+          <ExportDataButton
+            data={exportData}
+            columns={exportColumns}
+            filename={`student-invitations-${new Date().toISOString().split('T')[0]}`}
+            title="Student Invitations Report"
+            subtitle={`Total Invitations: ${invitations.length} • Generated on ${new Date().toLocaleString()}`}
+            buttonLabel="Export"
+            variant="outline"
+            size="default"
+            className="border-slate-200 hover:border-violet-200 hover:bg-violet-50"
+            onExport={(format: 'xlsx' | 'pdf') => {
+              console.log(`Exported invitations as ${format}`);
+            }}
+          />
 
           <Button 
             onClick={() => {
