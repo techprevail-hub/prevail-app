@@ -29,6 +29,8 @@ import {
   ArrowUp,
   ArrowDown,
   SearchX,
+  Download,
+  FileSpreadsheet,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -93,6 +95,8 @@ const API_ENDPOINTS = {
   STUDENT_INVITATION_BY_ID: (id: string) => `/api/role-institute/student-invitations/${id}`,
   CANCEL_INVITATION: (id: string) => `/api/role-institute/student-invitations/${id}/cancel`,
   RESEND_INVITATION: (id: string) => `/api/role-institute/student-invitations/${id}/resend`,
+  DOWNLOAD_TEMPLATE: '/api/role-institute/student-invitations/template',
+  BULK_INVITATION: '/api/role-institute/student-invitations/bulk',
 };
 
 // ─── Status Badge Component ──────────────────────────────────────────────
@@ -144,6 +148,10 @@ function InviteStudentDialog({
   editingInvitation?: StudentInvitation | null;
 }) {
   const [loading, setLoading] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [invitationMode, setInvitationMode] = useState<"single" | "bulk">("single");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
   const [formData, setFormData] = useState({
     studentName: "",
     email: "",
@@ -174,6 +182,15 @@ function InviteStudentDialog({
     }
   }, [editingInvitation]);
 
+  // ✅ Reset mode and file when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setInvitationMode("single");
+      setSelectedFile(null);
+    }
+  }, [open]);
+
+  // ─── Single Invitation Submit ──────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -195,9 +212,71 @@ function InviteStudentDialog({
     }
   };
 
+  // ─── Bulk Invitation Submit ────────────────────────────────────────────
+  const handleBulkInvitation = async () => {
+    if (!selectedFile) {
+      toast.error("Please select an Excel file.");
+      return;
+    }
+
+    setBulkLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const response = await api.post(
+        API_ENDPOINTS.BULK_INVITATION,
+        formData
+      );
+
+      console.log("Bulk invitation response:", response);
+
+      if (response?.success) {
+        const result = response.data;
+
+        // Show detailed success message
+        let successMessage = `Bulk invitation completed. ${result.sent} invitations sent.`;
+        if (result.skipped > 0 || result.failed > 0 || result.emailFailed > 0) {
+          successMessage += ` (${result.skipped} skipped, ${result.failed} failed, ${result.emailFailed} email failed)`;
+        }
+        toast.success(successMessage);
+
+        // Show details if there were issues
+        if (result.skipped > 0 || result.failed > 0 || result.emailFailed > 0) {
+          const details = result.details
+            .filter((d: any) => d.status === "skipped" || d.status === "failed" || d.status === "email_failed")
+            .map((d: any) => `Row ${d.row}: ${d.reason}`)
+            .join("\n");
+          
+          if (details) {
+            toast.info(`Issues:\n${details}`);
+          }
+        }
+
+        setSelectedFile(null);
+        onSuccess();
+        onOpenChange(false);
+      } else {
+        toast.error(
+          response?.message || "Failed to send bulk invitations."
+        );
+      }
+    } catch (error: any) {
+      console.error("Bulk invitation error:", error);
+      toast.error(
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to send bulk invitations."
+      );
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Invitation" : "Invite Student"}</DialogTitle>
           <DialogDescription>
@@ -208,90 +287,177 @@ function InviteStudentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="studentName">Student Name</Label>
-              <Input
-                id="studentName"
-                placeholder="Enter student name"
-                value={formData.studentName}
-                onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter email address"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-                disabled={isEditing}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="course">Course</Label>
-                <Input
-                  id="course"
-                  placeholder="e.g., B.Tech"
-                  value={formData.course}
-                  onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="branch">Branch</Label>
-                <Input
-                  id="branch"
-                  placeholder="e.g., CSE"
-                  value={formData.branch}
-                  onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="batch">Batch</Label>
-              <Input
-                id="batch"
-                placeholder="e.g., 2024"
-                value={formData.batch}
-                onChange={(e) => setFormData({ ...formData, batch: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
+        {/* ─── Mode Tabs ────────────────────────────────────────────────── */}
+        {!isEditing && (
+          <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg">
             <Button
               type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
+              variant={invitationMode === "single" ? "default" : "ghost"}
+              onClick={() => setInvitationMode("single")}
+              className="w-full"
             >
-              Cancel
+              <UserPlus className="w-4 h-4 mr-2" />
+              Single Invitation
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {isEditing ? "Updating..." : "Sending..."}
-                </>
-              ) : (
-                <>
-                  {isEditing ? "Update Invitation" : "Send Invitation"}
-                </>
+            <Button
+              type="button"
+              variant={invitationMode === "bulk" ? "default" : "ghost"}
+              onClick={() => setInvitationMode("bulk")}
+              className="w-full"
+            >
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Bulk Invitation
+            </Button>
+          </div>
+        )}
+
+        {/* ─── Single Invitation Form ───────────────────────────────────── */}
+        {invitationMode === "single" && (
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="studentName">Student Name</Label>
+                <Input
+                  id="studentName"
+                  placeholder="Enter student name"
+                  value={formData.studentName}
+                  onChange={(e) => setFormData({ ...formData, studentName: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter email address"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  disabled={isEditing}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="course">Course</Label>
+                  <Input
+                    id="course"
+                    placeholder="e.g., B.Tech"
+                    value={formData.course}
+                    onChange={(e) => setFormData({ ...formData, course: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="branch">Branch</Label>
+                  <Input
+                    id="branch"
+                    placeholder="e.g., CSE"
+                    value={formData.branch}
+                    onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="batch">Batch</Label>
+                <Input
+                  id="batch"
+                  placeholder="e.g., 2024"
+                  value={formData.batch}
+                  onChange={(e) => setFormData({ ...formData, batch: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {isEditing ? "Updating..." : "Sending..."}
+                  </>
+                ) : (
+                  <>
+                    {isEditing ? "Update Invitation" : "Send Invitation"}
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+
+        {/* ─── Bulk Invitation Upload ───────────────────────────────────── */}
+        {invitationMode === "bulk" && (
+          <div className="space-y-4 py-4">
+            <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
+              <FileSpreadsheet className="w-10 h-10 mx-auto mb-3 text-emerald-600" />
+              <h3 className="font-semibold text-slate-800">
+                Upload Student Excel File
+              </h3>
+              <p className="text-sm text-slate-500 mt-1">
+                Upload the Excel file using the downloaded template.
+              </p>
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                className="mt-4 cursor-pointer"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setSelectedFile(file);
+                }}
+              />
+              {selectedFile && (
+                <div className="mt-3 text-sm text-slate-600">
+                  Selected file:{" "}
+                  <span className="font-medium">
+                    {selectedFile.name}
+                  </span>
+                </div>
               )}
-            </Button>
-          </DialogFooter>
-        </form>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={bulkLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleBulkInvitation}
+                disabled={!selectedFile || bulkLoading}
+              >
+                {bulkLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending Invitations...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Invitations
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -417,6 +583,7 @@ export default function StudentInvitationsPage() {
   const [invitations, setInvitations] = useState<StudentInvitation[]>([]);
   const [pagination, setPagination] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [templateLoading, setTemplateLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -492,6 +659,50 @@ export default function StudentInvitationsPage() {
     fetchInvitations();
   }, [fetchInvitations]);
 
+  // ─── Download Template ──────────────────────────────────────────────────
+  const handleDownloadTemplate = async () => {
+    setTemplateLoading(true);
+    try {
+      // ✅ Using fetch with the correct URL pattern
+      const token = localStorage.getItem("token");
+      const baseURL = process.env.NEXT_PUBLIC_API_URL || '';
+      
+      const response = await fetch(`${baseURL}${API_ENDPOINTS.DOWNLOAD_TEMPLATE}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to download Excel template.");
+      }
+
+      // Get the blob from response
+      const blob = await response.blob();
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "student-invitation-template.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Excel template downloaded successfully.");
+    } catch (error: any) {
+      console.error("Template download error:", error);
+      toast.error(
+        error.message || "Failed to download Excel template."
+      );
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
   // ─── Handlers ───────────────────────────────────────────────────────────
   const handleSearch = (value: string) => {
     setSearch(value);
@@ -542,7 +753,6 @@ export default function StudentInvitationsPage() {
 
     setDeletingId(selectedInvitationId);
     try {
-      // Call the cancel invitation API (which acts as delete for pending invitations)
       await api.patch(API_ENDPOINTS.CANCEL_INVITATION(selectedInvitationId));
       toast.success("Invitation deleted successfully");
       await fetchInvitations();
@@ -581,16 +791,33 @@ export default function StudentInvitationsPage() {
           <h1 className="text-2xl font-bold text-slate-800">Student Invitations</h1>
           <p className="text-sm text-slate-500 mt-1">Manage and track student invitations</p>
         </div>
-        <Button 
-          onClick={() => {
-            setEditingInvitation(null);
-            setIsInviteDialogOpen(true);
-          }}
-          className="bg-gradient-to-r from-[#6C5CE7] to-[#8b7cf7] hover:from-[#5a4bd8] hover:to-[#7a6de7] text-white shadow-lg shadow-[#6C5CE7]/25"
-        >
-          <UserPlus className="w-4 h-4 mr-2" />
-          Invite Student
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* ✅ Download Template Button */}
+          <Button
+            variant="outline"
+            onClick={handleDownloadTemplate}
+            disabled={templateLoading}
+            className="gap-2"
+          >
+            {templateLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            {templateLoading ? "Downloading..." : "Download Excel Template"}
+          </Button>
+
+          <Button 
+            onClick={() => {
+              setEditingInvitation(null);
+              setIsInviteDialogOpen(true);
+            }}
+            className="bg-gradient-to-r from-[#6C5CE7] to-[#8b7cf7] hover:from-[#5a4bd8] hover:to-[#7a6de7] text-white shadow-lg shadow-[#6C5CE7]/25"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Invite Student
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -717,7 +944,7 @@ export default function StudentInvitationsPage() {
                   {/* Batch */}
                   <td className="px-4 py-3 text-slate-600">{invitation.batch}</td>
 
-                  {/* Status - Only show status badge here */}
+                  {/* Status */}
                   <td className="px-4 py-3">
                     <StatusBadge status={invitation.status} />
                   </td>
@@ -732,7 +959,7 @@ export default function StudentInvitationsPage() {
                     </p>
                   </td>
 
-                  {/* Actions - Edit, Resend, and Delete icons */}
+                  {/* Actions */}
                   <td className="px-4 py-3">
                     <InvitationActions
                       invitation={invitation}

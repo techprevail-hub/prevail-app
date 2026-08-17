@@ -7,7 +7,7 @@ export interface StudentInvitation {
   course: string;
   branch: string;
   batch: string;
-  status: 'pending' | 'accepted' | 'expired' | 'cancelled';
+  status: "pending" | "accepted" | "expired" | "cancelled";
   invitedBy: string;
   invitedAt: string;
   expiresAt: string;
@@ -18,7 +18,7 @@ export interface StudentInvitation {
 }
 
 export interface CreateStudentInvitationRequest {
-  student_name: string;
+  studentName: string;
   email: string;
   course: string;
   branch: string;
@@ -26,12 +26,12 @@ export interface CreateStudentInvitationRequest {
 }
 
 export interface UpdateStudentInvitationRequest {
-  student_name?: string;
+  studentName?: string;
   email?: string;
   course?: string;
   branch?: string;
   batch?: string;
-  status?: 'pending' | 'cancelled';
+  status?: "pending" | "cancelled";
 }
 
 export interface StudentInvitationResponse {
@@ -49,6 +49,59 @@ export interface StudentInvitationListResponse {
   message?: string;
 }
 
+/**
+ * Bulk student invitation row result
+ */
+export interface BulkStudentInvitationResult {
+  row: number;
+  studentName?: string;
+  email?: string;
+  status:
+    | "sent"
+    | "skipped"
+    | "failed"
+    | "email_failed";
+  invitationId?: string;
+  reason?: string;
+}
+
+/**
+ * Bulk student invitation summary
+ */
+export interface BulkStudentInvitationSummary {
+  total: number;
+  sent: number;
+  skipped: number;
+  failed: number;
+  emailFailed: number;
+}
+
+/**
+ * Bulk student invitation API response
+ */
+export interface BulkStudentInvitationResponse {
+  success: boolean;
+  message: string;
+  data: {
+    total: number;
+    sent: number;
+    skipped: number;
+    failed: number;
+    emailFailed: number;
+    details: BulkStudentInvitationResult[];
+  };
+}
+
+/**
+ * Excel file upload request
+ */
+export interface BulkStudentInvitationRequest {
+  file: File;
+}
+
+/**
+ * Pagination
+ */
 export interface Pagination {
   currentPage: number;
   totalPages: number;
@@ -58,11 +111,19 @@ export interface Pagination {
   hasPrevPage: boolean;
 }
 
+/**
+ * Student invitation filters
+ */
 export interface StudentInvitationFilters {
   search?: string;
-  status?: 'pending' | 'accepted' | 'expired' | 'cancelled' | 'all';
+  status?:
+    | "pending"
+    | "accepted"
+    | "expired"
+    | "cancelled"
+    | "all";
   page?: number;
   limit?: number;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: "asc" | "desc";
 }
