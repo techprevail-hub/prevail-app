@@ -71,6 +71,66 @@ export interface CoachInvitationFilters {
   sortOrder?: 'asc' | 'desc';
 }
 
+// ─── Bulk Invitation Types ──────────────────────────────────────────────
+
+/**
+ * Bulk coach invitation row result
+ */
+export interface BulkCoachInvitationResult {
+  row: number;
+  coachName?: string;
+  email?: string;
+  status: 'sent' | 'skipped' | 'failed' | 'email_failed';
+  invitationId?: string;
+  reason?: string;
+}
+
+/**
+ * Bulk coach invitation summary
+ */
+export interface BulkCoachInvitationSummary {
+  total: number;
+  sent: number;
+  skipped: number;
+  failed: number;
+  emailFailed: number;
+}
+
+/**
+ * Bulk coach invitation API response
+ */
+export interface BulkCoachInvitationResponse {
+  success: boolean;
+  message: string;
+  data: {
+    total: number;
+    sent: number;
+    skipped: number;
+    failed: number;
+    emailFailed: number;
+    details: BulkCoachInvitationResult[];
+  };
+}
+
+/**
+ * Excel file upload request
+ */
+export interface BulkCoachInvitationRequest {
+  file: File;
+}
+
+// ─── Excel Template Types ──────────────────────────────────────────────
+
+/**
+ * Excel row structure for coach invitation template
+ */
+export interface CoachExcelRow {
+  coachName: string;
+  email: string;
+  specialization: string;
+  experience: string;
+}
+
 // ─── Helper Types for API Responses ──────────────────────────────────────
 
 export interface ApiResponse<T = any> {
@@ -116,4 +176,50 @@ export interface CoachInvitationFormErrors {
   email?: string;
   specialization?: string;
   experience?: string;
+}
+
+// ─── Export Column Types ──────────────────────────────────────────────────
+
+/**
+ * Export column configuration for coach invitations
+ */
+export interface ExportColumn {
+  key: string;
+  header: string;
+  width?: number;
+  format?: (value: any, row?: Record<string, any>) => string;
+}
+
+/**
+ * Export data row for coach invitations
+ */
+export interface CoachExportData {
+  coach_name: string;
+  email: string;
+  specialization: string;
+  experience: string;
+  status: string;
+  created_at: string;
+}
+
+// ─── Dialog Mode Types ──────────────────────────────────────────────────
+
+export type InvitationMode = 'single' | 'bulk';
+
+// ─── File Upload Types ──────────────────────────────────────────────────
+
+export interface FileUploadState {
+  file: File | null;
+  uploading: boolean;
+  progress?: number;
+  error?: string;
+}
+
+// ─── API Error Types ─────────────────────────────────────────────────────
+
+export interface ApiError {
+  success: false;
+  message: string;
+  error?: string;
+  details?: any;
 }

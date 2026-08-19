@@ -31,6 +31,8 @@ import {
   SearchX,
   Briefcase,
   Award,
+  Download,
+  FileSpreadsheet,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -89,12 +91,17 @@ import {
 } from "@/types/CoachInvitation";
 import { api } from "@/utils/apiServices";
 
+// Import ExportDataButton
+import ExportDataButton from "@/components/role-institute/ExportDataButton";
+
 // ─── Constants ──────────────────────────────────────────────────────────────
 const API_ENDPOINTS = {
   COACH_INVITATIONS: '/api/role-institute/coach-invitations',
   COACH_INVITATION_BY_ID: (id: string) => `/api/role-institute/coach-invitations/${id}`,
   CANCEL_INVITATION: (id: string) => `/api/role-institute/coach-invitations/${id}/cancel`,
   RESEND_INVITATION: (id: string) => `/api/role-institute/coach-invitations/${id}/resend`,
+  DOWNLOAD_TEMPLATE: '/api/role-institute/coach-invitations/template',
+  BULK_INVITATION: '/api/role-institute/coach-invitations/bulk',
 };
 
 // ─── Status Badge Component ──────────────────────────────────────────────
@@ -146,6 +153,10 @@ function InviteCoachDialog({
   editingInvitation?: CoachInvitation | null;
 }) {
   const [loading, setLoading] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [invitationMode, setInvitationMode] = useState<"single" | "bulk">("single");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
   const [formData, setFormData] = useState({
     coachName: "",
     email: "",
@@ -173,6 +184,15 @@ function InviteCoachDialog({
     }
   }, [editingInvitation]);
 
+  // ✅ Reset mode and file when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setInvitationMode("single");
+      setSelectedFile(null);
+    }
+  }, [open]);
+
+  // ─── Single Invitation Submit ──────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -194,9 +214,71 @@ function InviteCoachDialog({
     }
   };
 
+  // ─── Bulk Invitation Submit ────────────────────────────────────────────
+  const handleBulkInvitation = async () => {
+    if (!selectedFile) {
+      toast.error("Please select an Excel file.");
+      return;
+    }
+
+    setBulkLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const response = await api.post(
+        API_ENDPOINTS.BULK_INVITATION,
+        formData
+      );
+
+      console.log("Bulk invitation response:", response);
+
+      if (response?.success) {
+        const result = response.data;
+
+        // Show detailed success message
+        let successMessage = `Bulk invitation completed. ${result.sent} invitations sent.`;
+        if (result.skipped > 0 || result.failed > 0 || result.emailFailed > 0) {
+          successMessage += ` (${result.skipped} skipped, ${result.failed} failed, ${result.emailFailed} email failed)`;
+        }
+        toast.success(successMessage);
+
+        // Show details if there were issues
+        if (result.skipped > 0 || result.failed > 0 || result.emailFailed > 0) {
+          const details = result.details
+            .filter((d: any) => d.status === "skipped" || d.status === "failed" || d.status === "email_failed")
+            .map((d: any) => `Row ${d.row}: ${d.reason}`)
+            .join("\n");
+          
+          if (details) {
+            toast.info(`Issues:\n${details}`);
+          }
+        }
+
+        setSelectedFile(null);
+        onSuccess();
+        onOpenChange(false);
+      } else {
+        toast.error(
+          response?.message || "Failed to send bulk invitations."
+        );
+      }
+    } catch (error: any) {
+      console.error("Bulk invitation error:", error);
+      toast.error(
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to send bulk invitations."
+      );
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Coach Invitation" : "Invite Coach"}</DialogTitle>
           <DialogDescription>
@@ -207,78 +289,165 @@ function InviteCoachDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="coachName">Coach Name</Label>
-              <Input
-                id="coachName"
-                placeholder="Enter coach name"
-                value={formData.coachName}
-                onChange={(e) => setFormData({ ...formData, coachName: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter email address"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-                disabled={isEditing}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="specialization">Specialization</Label>
-              <Input
-                id="specialization"
-                placeholder="e.g., Frontend Development, Data Science"
-                value={formData.specialization}
-                onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="experience">Experience</Label>
-              <Input
-                id="experience"
-                placeholder="e.g., 5 Years, 3+ Years"
-                value={formData.experience}
-                onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
+        {/* ─── Mode Tabs ────────────────────────────────────────────────── */}
+        {!isEditing && (
+          <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-lg">
             <Button
               type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
+              variant={invitationMode === "single" ? "default" : "ghost"}
+              onClick={() => setInvitationMode("single")}
+              className="w-full"
             >
-              Cancel
+              <UserPlus className="w-4 h-4 mr-2" />
+              Single Invitation
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {isEditing ? "Updating..." : "Sending..."}
-                </>
-              ) : (
-                <>
-                  {isEditing ? "Update Invitation" : "Send Invitation"}
-                </>
+            <Button
+              type="button"
+              variant={invitationMode === "bulk" ? "default" : "ghost"}
+              onClick={() => setInvitationMode("bulk")}
+              className="w-full"
+            >
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Bulk Invitation
+            </Button>
+          </div>
+        )}
+
+        {/* ─── Single Invitation Form ───────────────────────────────────── */}
+        {invitationMode === "single" && (
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="coachName">Coach Name</Label>
+                <Input
+                  id="coachName"
+                  placeholder="Enter coach name"
+                  value={formData.coachName}
+                  onChange={(e) => setFormData({ ...formData, coachName: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter email address"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  disabled={isEditing}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="specialization">Specialization</Label>
+                <Input
+                  id="specialization"
+                  placeholder="e.g., Frontend Development, Data Science"
+                  value={formData.specialization}
+                  onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="experience">Experience</Label>
+                <Input
+                  id="experience"
+                  placeholder="e.g., 5 Years, 3+ Years"
+                  value={formData.experience}
+                  onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {isEditing ? "Updating..." : "Sending..."}
+                  </>
+                ) : (
+                  <>
+                    {isEditing ? "Update Invitation" : "Send Invitation"}
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+
+        {/* ─── Bulk Invitation Upload ───────────────────────────────────── */}
+        {invitationMode === "bulk" && (
+          <div className="space-y-4 py-4">
+            <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
+              <FileSpreadsheet className="w-10 h-10 mx-auto mb-3 text-emerald-600" />
+              <h3 className="font-semibold text-slate-800">
+                Upload Coach Excel File
+              </h3>
+              <p className="text-sm text-slate-500 mt-1">
+                Upload the Excel file using the downloaded template.
+              </p>
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                className="mt-4 cursor-pointer"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setSelectedFile(file);
+                }}
+              />
+              {selectedFile && (
+                <div className="mt-3 text-sm text-slate-600">
+                  Selected file:{" "}
+                  <span className="font-medium">
+                    {selectedFile.name}
+                  </span>
+                </div>
               )}
-            </Button>
-          </DialogFooter>
-        </form>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={bulkLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleBulkInvitation}
+                disabled={!selectedFile || bulkLoading}
+              >
+                {bulkLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending Invitations...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Invitations
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -322,6 +491,16 @@ function ConfirmationDialog({
 function getInitials(name: string) {
   if (!name) return "?";
   return name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+}
+
+function formatDate(dateString: string) {
+  if (!dateString) return "N/A";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 // ─── Actions Component ──────────────────────────────────────────────────
@@ -404,6 +583,7 @@ export default function CoachInvitationsPage() {
   const [invitations, setInvitations] = useState<CoachInvitation[]>([]);
   const [pagination, setPagination] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [templateLoading, setTemplateLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -422,6 +602,45 @@ export default function CoachInvitationsPage() {
   const [editingInvitation, setEditingInvitation] = useState<CoachInvitation | null>(null);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [selectedInvitationId, setSelectedInvitationId] = useState<string | null>(null);
+
+  // ─── Export Data ──────────────────────────────────────────────────────
+  const [exportData, setExportData] = useState<Record<string, any>[]>([]);
+
+  // ─── Export Columns Configuration ────────────────────────────────────
+  const exportColumns = [
+    { 
+      key: 'coach_name', 
+      header: 'Coach Name',
+      width: 30
+    },
+    { 
+      key: 'email', 
+      header: 'Email',
+      width: 40
+    },
+    { 
+      key: 'specialization', 
+      header: 'Specialization',
+      width: 35
+    },
+    { 
+      key: 'experience', 
+      header: 'Experience',
+      width: 25
+    },
+    { 
+      key: 'status', 
+      header: 'Status',
+      width: 25,
+      format: (value: string) => value?.charAt(0).toUpperCase() + value?.slice(1) || 'N/A'
+    },
+    { 
+      key: 'created_at', 
+      header: 'Invited Date',
+      width: 30,
+      format: (value: string) => value ? formatDate(value) : 'N/A'
+    },
+  ];
 
   // ─── Fetch Invitations ──────────────────────────────────────────────────
   const fetchInvitations = useCallback(async () => {
@@ -454,9 +673,11 @@ export default function CoachInvitationsPage() {
         console.log("Pagination Data:", paginationData);
         
         setInvitations(invitationsData);
+        setExportData(invitationsData);
         setPagination(paginationData);
       } else {
         setInvitations([]);
+        setExportData([]);
         setPagination(null);
         if (response?.message) {
           toast.error(response.message);
@@ -465,6 +686,7 @@ export default function CoachInvitationsPage() {
     } catch (error: any) {
       console.error("Fetch invitations error:", error);
       setInvitations([]);
+      setExportData([]);
       setPagination(null);
       if (error.response?.status !== 404) {
         toast.error(error.response?.data?.message || error.message || "Failed to load invitations");
@@ -478,6 +700,46 @@ export default function CoachInvitationsPage() {
   useEffect(() => {
     fetchInvitations();
   }, [fetchInvitations]);
+
+  // ─── Download Template ──────────────────────────────────────────────────
+  const handleDownloadTemplate = async () => {
+    setTemplateLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const baseURL = process.env.NEXT_PUBLIC_API_URL || '';
+      
+      const response = await fetch(`${baseURL}${API_ENDPOINTS.DOWNLOAD_TEMPLATE}`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to download Excel template.");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "coach-invitation-template.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Excel template downloaded successfully.");
+    } catch (error: any) {
+      console.error("Template download error:", error);
+      toast.error(
+        error.message || "Failed to download Excel template."
+      );
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
 
   // ─── Handlers ───────────────────────────────────────────────────────────
   const handleSearch = (value: string) => {
@@ -529,7 +791,6 @@ export default function CoachInvitationsPage() {
 
     setDeletingId(selectedInvitationId);
     try {
-      // Call the cancel invitation API (which acts as delete for pending invitations)
       await api.patch(API_ENDPOINTS.CANCEL_INVITATION(selectedInvitationId));
       toast.success("Coach invitation cancelled successfully");
       await fetchInvitations();
@@ -567,16 +828,49 @@ export default function CoachInvitationsPage() {
           <h1 className="text-2xl font-bold text-slate-800">Coach Invitations</h1>
           <p className="text-sm text-slate-500 mt-1">Manage and track coach invitations</p>
         </div>
-        <Button 
-          onClick={() => {
-            setEditingInvitation(null);
-            setIsInviteDialogOpen(true);
-          }}
-          className="bg-gradient-to-r from-[#6C5CE7] to-[#8b7cf7] hover:from-[#5a4bd8] hover:to-[#7a6de7] text-white shadow-lg shadow-[#6C5CE7]/25"
-        >
-          <UserPlus className="w-4 h-4 mr-2" />
-          Invite Coach
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* ✅ Download Template Button */}
+          <Button
+            variant="outline"
+            onClick={handleDownloadTemplate}
+            disabled={templateLoading}
+            className="gap-2"
+          >
+            {templateLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            {templateLoading ? "Downloading..." : "Download Excel Template"}
+          </Button>
+
+          {/* ✅ Export Button */}
+          <ExportDataButton
+            data={exportData}
+            columns={exportColumns}
+            filename={`coach-invitations-${new Date().toISOString().split('T')[0]}`}
+            title="Coach Invitations Report"
+            subtitle={`Total Invitations: ${invitations.length} • Generated on ${new Date().toLocaleString()}`}
+            buttonLabel="Export"
+            variant="outline"
+            size="default"
+            className="border-slate-200 hover:border-violet-200 hover:bg-violet-50"
+            onExport={(format: 'xlsx' | 'pdf') => {
+              console.log(`Exported invitations as ${format}`);
+            }}
+          />
+
+          <Button 
+            onClick={() => {
+              setEditingInvitation(null);
+              setIsInviteDialogOpen(true);
+            }}
+            className="bg-gradient-to-r from-[#6C5CE7] to-[#8b7cf7] hover:from-[#5a4bd8] hover:to-[#7a6de7] text-white shadow-lg shadow-[#6C5CE7]/25"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Invite Coach
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -709,7 +1003,7 @@ export default function CoachInvitationsPage() {
                     </div>
                   </td>
 
-                  {/* Status - Only show status badge here */}
+                  {/* Status */}
                   <td className="px-4 py-3">
                     <StatusBadge status={invitation.status} />
                   </td>
@@ -724,7 +1018,7 @@ export default function CoachInvitationsPage() {
                     </p>
                   </td>
 
-                  {/* Actions - Edit, Resend, and Delete icons */}
+                  {/* Actions */}
                   <td className="px-4 py-3">
                     <InvitationActions
                       invitation={invitation}
@@ -778,11 +1072,11 @@ export default function CoachInvitationsPage() {
                   <button
                     key={pageNum}
                     onClick={() => handlePageChange(pageNum)}
-                    className={`h-8 w-8 rounded-lg text-xs font-semibold transition-colors ${
+                    className={`h-8 w-8 rounded-lg text-xs font-semibold transition-colors ${(
                       pageNum === pagination.page
                         ? "bg-violet-600 text-white"
                         : "text-slate-600 hover:bg-violet-50"
-                    }`}
+                    )}`}
                   >
                     {pageNum}
                   </button>
