@@ -14,22 +14,21 @@ import {
   ArrowUpDown, 
   ArrowUp, 
   ArrowDown,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  MinusCircle,
   Clock,
   Award,
   CheckCircle,
   XCircle,
   FileText,
   User,
-  Mic
+  Sparkles,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
 
 import { getProgressReport } from "@/services/progressReportService";
 
@@ -77,9 +76,14 @@ function SummaryCard({ title, value, icon: Icon, subtitle, trend }: any) {
 
 function CompletionBadge({ completed, label }: { completed: boolean; label: string }) {
   return (
-    <Badge variant="outline" className={`border-0 px-2 py-1 font-medium flex items-center gap-1 ${
-      completed ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
-    }`}>
+    <Badge 
+      variant="outline" 
+      className={`border-0 px-2 py-1 font-medium flex items-center gap-1 ${
+        completed 
+          ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+          : 'bg-slate-50 text-slate-500'
+      }`}
+    >
       {completed ? (
         <CheckCircle className="w-3 h-3 text-emerald-600" />
       ) : (
@@ -158,7 +162,7 @@ export default function ProgressReportPage() {
             // Add default status based on progress
             status: overallProgress >= 70 ? "improved" : 
                     overallProgress >= 40 ? "stable" : "declined" as "improved" | "stable" | "declined",
-            overallImprovement: 0, // Since we don't have previous data
+            overallImprovement: 0,
           };
         });
 
