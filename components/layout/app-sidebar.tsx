@@ -64,6 +64,7 @@ const NAV_CONFIG: Record<string, NavItem[]> = {
       icon: BarChart3,
     },
     { label: "Progress", href: "/dashboard/seeker/progress", icon: TrendingUp },
+    {label: "Placement", href: "/dashboard/seeker/placement", icon: Briefcase },
     {
       label: "Survey",
       href: "/dashboard/seeker/nps-survey",
