@@ -42,6 +42,7 @@ export interface StudentResponse {
   pagination: Pagination;
 
   data: Student[];
+  message: string;
 }
 
 export interface StudentQueryParams {
