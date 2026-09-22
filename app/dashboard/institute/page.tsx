@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { RefreshCw, Sparkles, XCircle } from "lucide-react";
+import { RefreshCw, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -68,27 +68,27 @@ export default function InstituteDashboardPage() {
   // ─── Error state ────────────────────────────────────────────────────────
   if (error && !data) {
     return (
-      <div className="p-6">
-        <Card className="border-0 shadow-sm">
+      <div className="p-4 sm:p-6">
+        <Card className="border-0 shadow-md bg-white/80 backdrop-blur-xl">
           <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 200 }}
-              className="rounded-full bg-red-50 p-4"
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 200, damping: 20 }}
+              className="rounded-2xl bg-gradient-to-br from-red-50 to-pink-50 border border-red-100 p-4"
             >
               <XCircle className="h-8 w-8 text-red-500" />
             </motion.div>
             <div>
-              <h3 className="text-base font-semibold text-slate-800">
-                Unable to load dashboard data.
+              <h3 className="text-lg font-bold text-slate-900">
+                Unable to load dashboard
               </h3>
-              <p className="text-sm text-slate-500 mt-1">{error}</p>
+              <p className="text-sm text-slate-600 mt-2">{error}</p>
             </div>
             <Button
               onClick={loadDashboard}
               disabled={loading}
-              className="gap-2 bg-gradient-to-r from-[#6C5CE7] to-[#8b7cf7] hover:from-[#5a4bd8] hover:to-[#7a6de7] text-white shadow-lg shadow-[#6C5CE7]/25"
+              className="gap-2 bg-gradient-to-r from-[#6C5CE7] to-[#8b7cf7] hover:from-[#5a4bd8] hover:to-[#7a6de7] text-white shadow-lg shadow-[#6C5CE7]/30 mt-2"
             >
               <RefreshCw
                 className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
@@ -106,69 +106,47 @@ export default function InstituteDashboardPage() {
   const nps = data?.nps;
   const studentsNeedingAttention = data?.studentsNeedingAttention ?? [];
   const isLoading = loading && !data;
-
-  // ─── Trend data from API (adjust key based on your backend) ─────────────
-  // If your backend returns `trendData`, use it. Otherwise chart shows empty state.
   const trendData = (data as any)?.trendData as
     | { month: string; progress: number; careerReadiness: number }[]
     | undefined;
 
   return (
-    <div className="space-y-6 p-6">
-      {/* ─── Header ─────────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-              Institute Overview
-            </h1>
-            <Sparkles className="h-5 w-5 text-indigo-500" />
+    <div className="p-3 sm:p-4">
+      <div className="max-w-7xl mx-auto space-y-3">
+        {/* ─── Bento Grid Layout ───────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 auto-rows-max">
+          {/* Row 1: Overview Cards (spans full width) */}
+          <div className="lg:col-span-12">
+            <OverviewCardsSection overview={overview} loading={isLoading} />
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            Monitor student progress, career readiness, placements and overall
-            institute performance.
-          </p>
+
+          {/* Row 2: Trend Chart (left, large) + NPS (right, compact) */}
+          <div className="lg:col-span-8">
+            <TrendChartSection data={trendData} loading={isLoading} />
+          </div>
+          <div className="lg:col-span-4">
+            <NPSSection nps={nps} loading={isLoading} />
+          </div>
+
+          {/* Row 3: Placement Overview */}
+          <div className="lg:col-span-12">
+            <PlacementOverviewSection placement={placement} loading={isLoading} />
+          </div>
+
+          {/* Row 4: Students Needing Attention (full width) */}
+          <div className="lg:col-span-12">
+            <StudentsAttentionSection
+              students={studentsNeedingAttention}
+              loading={isLoading}
+            />
+          </div>
+
+          {/* Row 5: Quick Actions (full width) */}
+          <div className="lg:col-span-12">
+            <QuickActionsSection />
+          </div>
         </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2 border-slate-200 hover:border-violet-200 hover:bg-violet-50 transition-all duration-200"
-          onClick={loadDashboard}
-          disabled={loading}
-        >
-          <RefreshCw
-            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
-          />
-          Refresh
-        </Button>
-      </motion.div>
-
-      {/* ─── Overview Cards (Clickable → Navigate) ─────────────────────── */}
-      <OverviewCardsSection overview={overview} loading={isLoading} />
-
-      {/* ─── Trend Chart (Real API Data) ────────────────────────────────── */}
-      <TrendChartSection data={trendData} loading={isLoading} />
-
-      {/* ─── Placement Overview ─────────────────────────────────────────── */}
-      <PlacementOverviewSection placement={placement} loading={isLoading} />
-
-      {/* ─── NPS + Students Needing Attention ───────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <NPSSection nps={nps} loading={isLoading} />
-        <StudentsAttentionSection
-          students={studentsNeedingAttention}
-          loading={isLoading}
-        />
       </div>
-
-      {/* ─── Quick Actions ──────────────────────────────────────────────── */}
-      <QuickActionsSection />
     </div>
   );
 }

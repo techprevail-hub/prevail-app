@@ -1,3 +1,5 @@
+// components/institute-dashboard/StudentsAttentionSection.tsx
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -13,6 +15,7 @@ import {
   GraduationCap,
   BookOpen,
   ArrowUpRight,
+  Zap,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -28,7 +31,6 @@ function getInitials(name: string | null | undefined) {
     .toUpperCase();
 }
 
-// Deterministic gradient per student (nice variety without being random)
 const AVATAR_GRADIENTS = [
   "from-rose-400 to-pink-500",
   "from-amber-400 to-orange-500",
@@ -39,9 +41,7 @@ const AVATAR_GRADIENTS = [
 ];
 
 function getAvatarGradient(id: string) {
-  const hash = id
-    .split("")
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hash = id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length];
 }
 
@@ -61,7 +61,7 @@ interface StudentsAttentionSectionProps {
   loading?: boolean;
 }
 
-// ─── Student Row ────────────────────────────────────────────────────────────
+// ─── Student Row Card (Compact) ─────────────────────────────────────────────
 
 function StudentRow({
   student,
@@ -75,95 +75,145 @@ function StudentRow({
   const reasons = student.reasons ?? [];
 
   return (
-    <motion.li
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.05 * index, duration: 0.35 }}
-      whileHover={{ y: -2 }}
-      className="group"
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: 0.05 * index, duration: 0.4 }}
+      whileHover={{ x: 4 }}
     >
       <div
         onClick={() =>
           router.push(`/dashboard/institute/students/${student.studentId}`)
         }
-        className="relative cursor-pointer rounded-xl border border-slate-100 bg-white hover:border-violet-200 hover:shadow-md hover:shadow-violet-100/50 transition-all duration-300 p-4 overflow-hidden"
+        className="relative group cursor-pointer rounded-xl border border-white/50 bg-white/60 backdrop-blur-sm hover:bg-white/90 hover:border-amber-200/80 transition-all duration-300 p-3 overflow-hidden"
       >
-        {/* Left accent bar */}
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-amber-400 to-rose-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-amber-400 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-50/0 to-orange-50/0 group-hover:from-amber-50/40 group-hover:to-orange-50/40 transition-all duration-300 pointer-events-none" />
 
-        <div className="flex items-start gap-4">
-          {/* Avatar with gradient ring */}
+        <div className="relative flex items-center gap-3">
+          {/* Avatar */}
           <div className="relative shrink-0">
-            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-300 to-orange-300 blur-md opacity-40 group-hover:opacity-70 transition-opacity" />
+            <motion.div
+              className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-300 to-orange-300 blur-lg opacity-0 group-hover:opacity-50 transition-opacity duration-300"
+              whileHover={{ scale: 1.2 }}
+            />
             <div
-              className={`relative w-12 h-12 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center text-white font-bold text-base shadow-md ring-4 ring-white`}
+              className={`relative w-10 h-10 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center text-white font-bold text-sm shadow-lg ring-2 ring-white group-hover:ring-amber-100 transition-all duration-300`}
             >
               {getInitials(student.name)}
             </div>
-            {/* Alert dot */}
-            <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white flex items-center justify-center shadow-sm">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-            </span>
+            <motion.span
+              className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-white flex items-center justify-center shadow-lg ring-1 ring-white"
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <span className="w-2 h-2 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 animate-pulse" />
+            </motion.span>
           </div>
 
-          {/* Body */}
+          {/* Content */}
           <div className="min-w-0 flex-1">
-            {/* Name + action */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-semibold text-slate-800 truncate text-[15px] group-hover:text-violet-700 transition-colors">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-slate-900 truncate text-sm group-hover:text-amber-700 transition-colors">
                   {student.name}
                 </p>
-                <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5 truncate">
-                  <Mail className="w-3 h-3 shrink-0 text-slate-400" />
+                <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate group-hover:text-slate-600 transition-colors">
+                  <Mail className="w-2.5 h-2.5 shrink-0 text-slate-400" />
                   {student.email}
                 </p>
               </div>
 
-              {/* Action icon (visible on hover) */}
-              <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="rounded-lg bg-violet-50 border border-violet-100 p-1.5">
-                  <ArrowUpRight className="h-3.5 w-3.5 text-violet-600" />
+              <motion.div
+                className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                whileHover={{ scale: 1.1 }}
+              >
+                <div className="rounded-md bg-gradient-to-br from-amber-100 to-orange-100 border border-amber-200 p-1">
+                  <ArrowUpRight className="h-3 w-3 text-amber-600" />
                 </div>
-              </div>
+              </motion.div>
             </div>
 
-            {/* Meta chips (course / branch) */}
-            {(student.course || student.branch) && (
-              <div className="flex flex-wrap gap-1.5 mt-2.5">
-                {student.course && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-100 text-[10px] font-medium text-slate-600">
-                    <GraduationCap className="w-2.5 h-2.5" />
-                    {student.course}
-                  </span>
-                )}
-                {student.branch && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-50 border border-slate-100 text-[10px] font-medium text-slate-600">
-                    <BookOpen className="w-2.5 h-2.5" />
-                    {student.branch}
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* Reasons as chips */}
-            {reasons.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2.5">
-                {reasons.map((reason, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 text-[11px] font-medium text-amber-700"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                    {reason}
-                  </span>
-                ))}
-              </div>
-            )}
+            {/* Course/branch + reasons in one row */}
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+              {student.course && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-[9px] font-semibold text-slate-700">
+                  <GraduationCap className="w-2.5 h-2.5" />
+                  {student.course}
+                </span>
+              )}
+              {student.branch && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-[9px] font-semibold text-slate-700">
+                  <BookOpen className="w-2.5 h-2.5" />
+                  {student.branch}
+                </span>
+              )}
+              {reasons.map((reason, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-50 via-orange-50 to-rose-50 border border-amber-200/70 text-[10px] font-semibold text-amber-700"
+                >
+                  <Zap className="w-2.5 h-2.5 text-amber-500" />
+                  {reason}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </motion.li>
+    </motion.div>
+  );
+}
+
+// ─── Loading Skeleton ───────────────────────────────────────────────────────
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="rounded-xl overflow-hidden">
+          <Skeleton className="h-16 w-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Empty State ────────────────────────────────────────────────────────────
+
+function EmptyState() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5 }}
+      className="flex flex-col items-center justify-center py-8 text-center"
+    >
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="relative mb-3"
+      >
+        <div className="absolute inset-0 rounded-full bg-emerald-100 blur-2xl opacity-40" />
+        <div className="relative rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/60 p-3.5">
+          <UserCheck className="h-6 w-6 text-emerald-600 mx-auto" />
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <h3 className="text-sm font-bold text-slate-900 mb-1">
+          All students are on track 🎉
+        </h3>
+        <p className="text-xs text-slate-600 max-w-xs">
+          No students currently need intervention.
+        </p>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -174,93 +224,83 @@ export default function StudentsAttentionSection({
   loading,
 }: StudentsAttentionSectionProps) {
   const router = useRouter();
+  const studentCount = students.length;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.4 }}
-      className="lg:col-span-2"
+      transition={{ duration: 0.6, delay: 0.45 }}
+      className="h-full"
     >
-      <Card className="border-0 shadow-sm h-full overflow-hidden relative">
-        {/* Decorative gradient blob */}
-        <div className="absolute -top-16 -left-16 w-48 h-48 rounded-full bg-gradient-to-br from-amber-50 to-rose-50 opacity-70 blur-3xl pointer-events-none" />
+      <Card className="border-0 bg-white/80 backdrop-blur-xl shadow-md hover:shadow-lg transition-all duration-300 h-full overflow-hidden relative flex flex-col">
+        <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full bg-gradient-to-br from-amber-100/20 to-orange-100/20 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -right-32 w-80 h-80 rounded-full bg-gradient-to-br from-rose-100/20 to-pink-100/20 blur-3xl pointer-events-none" />
 
-        <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-amber-50/60 via-slate-50/60 to-rose-50/40 px-6 py-4 relative">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <div className="rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 p-1.5 shadow-sm shadow-amber-500/30">
-                  <AlertTriangle className="h-3.5 w-3.5 text-white" />
-                </div>
-                Students Needing Attention
-              </CardTitle>
-              <CardDescription className="text-xs text-slate-500 mt-1">
-                Students identified as requiring intervention
-              </CardDescription>
+        <CardHeader className="border-b border-white/40 bg-gradient-to-r from-white/50 to-amber-50/30 px-5 py-3 relative">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 p-1.5 shadow-lg">
+                <AlertTriangle className="h-3.5 w-3.5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-bold text-slate-900">
+                  Students Needing Attention
+                </CardTitle>
+                <CardDescription className="text-[11px] text-slate-600 mt-0.5">
+                  Intervention opportunities
+                </CardDescription>
+              </div>
             </div>
-            {students.length > 0 && (
-              <Badge
-                variant="outline"
-                className="bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border-amber-200 border px-3 py-1 rounded-lg font-semibold shadow-sm"
+
+            {studentCount > 0 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
               >
-                {students.length} student{students.length !== 1 ? "s" : ""}
-              </Badge>
+                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1 rounded-full font-bold text-[10px] shadow-md">
+                  {studentCount} {studentCount === 1 ? "Student" : "Students"}
+                </Badge>
+              </motion.div>
             )}
           </div>
         </CardHeader>
 
-        <CardContent className="p-4 relative">
+        <CardContent className="p-3 relative flex-1">
           {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-24 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : students.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="flex flex-col items-center justify-center py-14 text-center"
-            >
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full bg-emerald-100 blur-xl opacity-60" />
-                <div className="relative rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 p-4 mb-4">
-                  <UserCheck className="h-7 w-7 text-emerald-600" />
-                </div>
-              </div>
-              <h3 className="text-sm font-semibold text-slate-700">
-                All students are on track 🎉
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-xs">
-                No interventions needed right now. Great work!
-              </p>
-            </motion.div>
+            <LoadingSkeleton />
+          ) : studentCount === 0 ? (
+            <EmptyState />
           ) : (
-            <ul className="space-y-2.5">
-              {students.map((student, index) => (
-                <StudentRow
-                  key={student.studentId}
-                  student={student}
-                  index={index}
-                />
-              ))}
-            </ul>
-          )}
+            <>
+              <div className="space-y-2 mb-3">
+                {students.map((student, index) => (
+                  <StudentRow
+                    key={student.studentId}
+                    student={student}
+                    index={index}
+                  />
+                ))}
+              </div>
 
-          {/* Footer link */}
-          {students.length > 0 && !loading && (
-            <div className="flex justify-end mt-4 pt-3 border-t border-slate-100">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-amber-700 hover:text-amber-800 hover:bg-amber-50 group"
-                onClick={() => router.push("/dashboard/institute/students")}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="pt-3 border-t border-white/40"
               >
-                View All Students
-                <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-              </Button>
-            </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full gap-1.5 text-amber-700 hover:text-amber-800 hover:bg-amber-50 group border border-amber-200/60 hover:border-amber-300 font-semibold rounded-lg text-xs h-9"
+                  onClick={() => router.push("/dashboard/institute/students")}
+                >
+                  View All Students
+                  <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+                </Button>
+              </motion.div>
+            </>
           )}
         </CardContent>
       </Card>
