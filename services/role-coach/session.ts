@@ -1,3 +1,4 @@
+
 import { api } from "@/utils/apiServices";
 
 import type {
@@ -7,6 +8,7 @@ import type {
   SessionNotesResponse,
   RescheduleSessionPayload,
   CancelSessionPayload,
+  GroupMeetingLinkResponse,
 } from "@/types/role-coach/session";
 
 const BASE_URL = "/api/role-coach/sessions";
@@ -114,4 +116,17 @@ export const updateCoachSessionNotes = async (
     message: string;
     data: CoachSession;
   }>(response).data;
+};
+
+// Update shared meeting link for a group session
+export const updateGroupMeetingLink = async (
+  groupSessionId: string,
+  meetingUrl: string
+): Promise<GroupMeetingLinkResponse["data"]> => {
+  const response = await api.patch(
+    `${BASE_URL}/group-sessions/${groupSessionId}/meeting-link`,
+    { meetingUrl }
+  );
+
+  return unwrap<GroupMeetingLinkResponse>(response).data;
 };

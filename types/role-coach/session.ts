@@ -17,6 +17,16 @@ export interface CoachSession {
   seekerId: string;
   serviceId: string;
 
+  // Shared group session reference
+  groupSessionId: string | null;
+
+  seekerName: string;
+  seekerEmail: string;
+  seekerRole: string;
+
+  instituteId: string | null;
+  instituteName: string | null;
+
   sessionDate: string;
   startTime: string;
   endTime: string;
@@ -33,7 +43,9 @@ export interface CoachSession {
   status: CoachSessionStatus;
   paymentStatus: PaymentStatus;
 
+  // Individual or shared group meeting URL
   meetingUrl: string | null;
+
   cancellationReason: string | null;
   coachNotes: string | null;
 
@@ -80,4 +92,28 @@ export interface UpdateSessionStatusPayload {
 
 export interface UpdateSessionNotesPayload {
   notes: string;
+}
+
+// Update shared group meeting link
+export interface UpdateGroupMeetingLinkPayload {
+  meetingUrl: string;
+}
+
+// Response returned after updating a group meeting link
+export interface GroupMeetingLinkResponse {
+  success: boolean;
+  message: string;
+  data: {
+    id: string;
+    coachId: string;
+    serviceId: string;
+    sessionDate: string;
+    startTime: string;
+    endTime: string;
+    timezone: string;
+    meetingUrl: string | null;
+    status: string;
+    capacity: number;
+    updatedAt: string;
+  };
 }
