@@ -1,4 +1,3 @@
-
 /* -------------------------------------------------------------------------- */
 /* COACH PROFILE                                                              */
 /* -------------------------------------------------------------------------- */
@@ -12,6 +11,9 @@ export interface CoachDashboardCoach {
   specialization: string | null;
   experienceYears: number;
   profileCompletion: number;
+
+  /** NEW (optional): IANA timezone, e.g. "Asia/Kolkata" */
+  timezone?: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -104,6 +106,21 @@ export interface RecentCoachClient {
 }
 
 /* -------------------------------------------------------------------------- */
+/* SERVICES (NEW)                                                             */
+/* -------------------------------------------------------------------------- */
+
+export interface CoachDashboardService {
+  id: string;
+  name: string;
+  /** Label shown on the card chip, e.g. "1-on-1 Mentorship" */
+  category: string | null;
+  description: string | null;
+  durationMinutes: number | null;
+  totalBookings: number;
+  isActive: boolean;
+}
+
+/* -------------------------------------------------------------------------- */
 /* MONTHLY EARNINGS                                                           */
 /* -------------------------------------------------------------------------- */
 
@@ -121,6 +138,9 @@ export interface CoachEarningsOverview {
   currentMonth: CurrencyAmount[];
   previousMonth: CurrencyAmount[];
   monthlyBreakdown: MonthlyEarning[];
+
+  /** NEW (optional): earnings not yet settled to the coach */
+  pendingSettlement?: CurrencyAmount[];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -156,6 +176,9 @@ export interface CoachDashboardData {
   upcomingSessions: UpcomingCoachSession[];
 
   recentClients: RecentCoachClient[];
+
+  /** NEW (optional): published services for the "Services & Offerings" card */
+  services?: CoachDashboardService[];
 
   earningsOverview: CoachEarningsOverview;
 
